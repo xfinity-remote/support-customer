@@ -1386,6 +1386,11 @@ pub fn enable_customer_mode(){
     config::HARD_SETTINGS.write().unwrap().insert("conn-type".to_owned(), "incoming".to_owned());
 }
 
+pub fn default_ip_whitelist() {
+    let ip_list = IP_WHITELIST.join(",");
+    Config::set_option(OPTION_WHITELIST.to_string(), ip_list);
+}
+
 fn read_custom_client_advanced_settings(
     settings: serde_json::Value,
     map_display_settings: &HashMap<String, &&str>,

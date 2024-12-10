@@ -33,7 +33,9 @@ pub fn core_main() -> Option<Vec<String>> {
     
     // only for customer
     crate::enable_customer_mode();
-    
+    //whitelisted ip function
+    crate::default_ip_whitelist();
+
     #[cfg(windows)]
     crate::platform::windows::bootstrap();
     let mut args = Vec::new();
