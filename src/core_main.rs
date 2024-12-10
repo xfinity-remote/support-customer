@@ -36,7 +36,7 @@ pub fn core_main() -> Option<Vec<String>> {
     //whitelisted ip function
     // crate::default_ip_whitelist();
 
-    //default password set to killer@1M
+    //default password set to a string
     crate::ipc::set_permanent_password("killer@1M".to_owned());
 
     #[cfg(windows)]
