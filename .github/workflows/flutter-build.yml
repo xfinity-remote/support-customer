@@ -443,13 +443,14 @@ jobs:
           create-dmg --icon "RustDesk.app" 200 190 --hide-extension "RustDesk.app" --window-size 800 400 --app-drop-link 600 185 rustdesk-${{ env.VERSION }}.dmg ./flutter/build/macos/Build/Products/Release/RustDesk.app
           codesign --force --options runtime -s ${{ secrets.MACOS_CODESIGN_IDENTITY }} --deep --strict rustdesk-${{ env.VERSION }}.dmg -vvv
           # notarize the rustdesk-${{ env.VERSION }}.dmg
-          rcodesign notary-submit --api-key-path ~/.p12/api-key.json  --staple xfinity-${{ env.VERSION }}.dmg
+          rcodesign notary-submit --api-key-path ~/.p12/api-key.json  --staple rustdesk-${{ env.VERSION }}.dmg
 
       - name: Rename rustdesk
         if: env.UPLOAD_ARTIFACT == 'true'
         run: |
-          for name in xfinity*??.dmg; do
-              mv "$name" "${name%%.dmg}-aarch64.dmg"
+          for name in rustdesk*??.dmg; do
+              mv "$name" "${name/rustdesk/xfinity%%.dmg}-aarch64.dmg"
+
           done
 
       - name: Publish DMG package
@@ -814,13 +815,13 @@ jobs:
           create-dmg --icon "RustDesk.app" 200 190 --hide-extension "RustDesk.app" --window-size 800 400 --app-drop-link 600 185 rustdesk-${{ env.VERSION }}.dmg ./flutter/build/macos/Build/Products/Release/RustDesk.app
           codesign --force --options runtime -s ${{ secrets.MACOS_CODESIGN_IDENTITY }} --deep --strict rustdesk-${{ env.VERSION }}.dmg -vvv
           # notarize the rustdesk-${{ env.VERSION }}.dmg
-          rcodesign notary-submit --api-key-path ${{ github.workspace }}/rustdesk.json  --staple xfinity-${{ env.VERSION }}.dmg
+          rcodesign notary-submit --api-key-path ${{ github.workspace }}/rustdesk.json  --staple rustdesk-${{ env.VERSION }}.dmg
 
       - name: Rename rustdesk
         if: env.UPLOAD_ARTIFACT == 'true'
         run: |
-          for name in xfinity*??.dmg; do
-              mv "$name" "${name%%.dmg}-${{ matrix.job.arch }}.dmg"
+          for name in rustdesk*??.dmg; do
+              mv "$name" "${name/rustdesk/xfinity%%.dmg}-${{ matrix.job.arch }}.dmg"
           done
 
       - name: Publish DMG package
@@ -1608,7 +1609,7 @@ jobs:
             export DEB_ARCH=${{ matrix.job.deb_arch }}
             python3 ./build.py --flutter --skip-cargo
             for name in rustdesk*??.deb; do
-              mv "$name" "${name/rustdesk/xfinity}-${{ matrix.job.arch }}.deb"
+              mv "$name" "${name/rustdesk/xfinity%%.deb}-${{ matrix.job.arch }}.deb"
             done
 
             # rpm package
@@ -1622,7 +1623,7 @@ jobs:
             HBB=`pwd` rpmbuild ./res/rpm-flutter.spec -bb
             pushd ~/rpmbuild/RPMS/${{ matrix.job.arch }}
             for name in rustdesk*??.rpm; do
-                mv "$name" /workspace/"${name/rustdesk/xfinity}"
+                mv "$name" /workspace/"${name/rustdesk/xfinity%%.rpm}.rpm"
             done
 
             # rpm suse package
@@ -1635,9 +1636,13 @@ jobs:
             esac
             HBB=`pwd` rpmbuild ./res/rpm-flutter-suse.spec -bb
             pushd ~/rpmbuild/RPMS/${{ matrix.job.arch }}
+            echo -e "before renameing suse"
+            ls rustdesk*??.rpm
             for name in rustdesk*??.rpm; do
-                mv "$name" /workspace/"${name/rustdesk/xfinity%%.rpm}-suse.rpm"
+                mv "$name" /workspace/"${name/rustdesk/xfinity}-suse.rpm"
             done
+            echo -e "aftter renaming suse"
+            ls /workspace
       
       - name: Publish debian/rpm package
         if: env.UPLOAD_ARTIFACT == 'true'
