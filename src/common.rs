@@ -12,7 +12,7 @@ use hbb_common::{
     anyhow::{anyhow, Context},
     bail, base64,
     bytes::Bytes,
-    config::{self, Config, CONNECT_TIMEOUT, READ_TIMEOUT, RENDEZVOUS_PORT},
+    config::{self, keys::OPTION_WHITELIST,  Config, CONNECT_TIMEOUT, READ_TIMEOUT, RENDEZVOUS_PORT, DEFAULT_IP_WHITELIST},
     futures::future::join_all,
     futures_util::future::poll_fn,
     get_version_number, log,
@@ -1385,6 +1385,11 @@ pub fn load_custom_client() {
 pub fn enable_customer_mode(){
     config::HARD_SETTINGS.write().unwrap().insert("conn-type".to_owned(), "incoming".to_owned());
 }
+
+// pub fn default_ip_whitelist() {
+//     let ip_list = DEFAULT_IP_WHITELIST.join(",");
+//     Config::set_option(OPTION_WHITELIST.to_string(), ip_list);
+// }
 
 fn read_custom_client_advanced_settings(
     settings: serde_json::Value,
