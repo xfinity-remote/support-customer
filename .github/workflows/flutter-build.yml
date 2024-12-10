@@ -1626,13 +1626,9 @@ jobs:
             esac
             HBB=`pwd` rpmbuild ./res/rpm-flutter.spec -bb
             pushd ~/rpmbuild/RPMS/${{ matrix.job.arch }}
-            echo -e "before renameing .rpm"
             for name in rustdesk*??.rpm; do
-                mv "$name" /workspace/"${name/rustdesk/xfinity}.rpm"
+                mv "$name" /workspace/"${name%%.rpm}.rpm"
             done
-            echo -e "after renameing .rpm"
-            ls
-
 
             # rpm suse package
             echo -e "start packaging suse package"
@@ -1644,14 +1640,25 @@ jobs:
             esac
             HBB=`pwd` rpmbuild ./res/rpm-flutter-suse.spec -bb
             pushd ~/rpmbuild/RPMS/${{ matrix.job.arch }}
-            echo -e "before renameing suse"
-            ls rustdesk*??.rpm
             for name in rustdesk*??.rpm; do
-                mv "$name" /workspace/"${name/rustdesk/xfinity}-suse.rpm"
+                mv "$name" /workspace/"${name%%.rpm}-suse.rpm"
             done
-            echo -e "aftter renaming suse"
-            ls /workspace
-      
+
+
+            echo -e "Before Renaming"
+            ls
+            echo -e "Renaming rustdesk*.deb to xfinity*.deb"
+            for name in rustdesk*.deb; do
+                mv "$name" "${name/rustdesk/xfinity}"
+            done
+            ls
+
+            echo -e "Renaming rustdesk*.rpm to xfinity*.deb"
+            for name in rustdesk*.rpm; do
+                mv "$name" "${name/rustdesk/xfinity}"
+            done
+            ls
+
       - name: Publish debian/rpm package
         if: env.UPLOAD_ARTIFACT == 'true'
         uses: softprops/action-gh-release@v1
