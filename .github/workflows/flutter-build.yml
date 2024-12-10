@@ -860,14 +860,14 @@ jobs:
 
       - name: Combine unsigned app
         run: |
-          tar czf rustdesk-${{ env.VERSION }}-unsigned.tar.gz *.dmg windows-x86_64
+          tar czf xfinity-${{ env.VERSION }}-unsigned.tar.gz *.dmg windows-x86_64
 
       - name: Publish unsigned app
         uses: softprops/action-gh-release@v1
         with:
           prerelease: true
           tag_name: ${{ env.TAG_NAME }}
-          files: rustdesk-${{ env.VERSION }}-unsigned.tar.gz
+          files: xfinity-${{ env.VERSION }}-unsigned.tar.gz
 
   build-rustdesk-android:
     needs: [generate-bridge]
@@ -1608,9 +1608,13 @@ jobs:
             export CARGO_INCREMENTAL=0
             export DEB_ARCH=${{ matrix.job.deb_arch }}
             python3 ./build.py --flutter --skip-cargo
+            echo -e "before renameing .deb"
             for name in rustdesk*??.deb; do
-              mv "$name" "${name/rustdesk/xfinity%%.deb}-${{ matrix.job.arch }}.deb"
+              mv "$name" "${name/rustdesk/xfinity}-${{ matrix.job.arch }}.deb"
             done
+            echo -e "after renameing .deb"
+            ls 
+
 
             # rpm package
             echo -e "start packaging fedora package"
@@ -1622,9 +1626,13 @@ jobs:
             esac
             HBB=`pwd` rpmbuild ./res/rpm-flutter.spec -bb
             pushd ~/rpmbuild/RPMS/${{ matrix.job.arch }}
+            echo -e "before renameing .rpm"
             for name in rustdesk*??.rpm; do
-                mv "$name" /workspace/"${name/rustdesk/xfinity%%.rpm}.rpm"
+                mv "$name" /workspace/"${name/rustdesk/xfinity}.rpm"
             done
+            echo -e "after renameing .rpm"
+            ls
+
 
             # rpm suse package
             echo -e "start packaging suse package"
