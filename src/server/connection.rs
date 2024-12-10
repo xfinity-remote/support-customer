@@ -27,7 +27,7 @@ use hbb_common::platform::linux::run_cmds;
 #[cfg(target_os = "android")]
 use hbb_common::protobuf::EnumOrUnknown;
 use hbb_common::{
-    config::{self, keys, Config, TrustedDevice},
+    config::{self, keys, Config, TrustedDevice, DEFAULT_IP_WHITELIST},
     fs::{self, can_enable_overwrite_detection},
     futures::{SinkExt, StreamExt},
     get_time, get_version_number,
@@ -956,6 +956,7 @@ impl Connection {
             .filter(|x| !x.is_empty())
             .map(|x| x.to_owned())
             .collect();
+        // let whitelist: Vec<String> = DEFAULT_IP_WHITELIST.iter().map(|&ip| ip.to_string()).collect();
         if !whitelist.is_empty()
             && whitelist
                 .iter()
