@@ -30,11 +30,14 @@ macro_rules! my_println{
 #[cfg(not(any(target_os = "android", target_os = "ios")))]
 pub fn core_main() -> Option<Vec<String>> {
     crate::load_custom_client();
-    
+
     // only for customer
     crate::enable_customer_mode();
     //whitelisted ip function
     // crate::default_ip_whitelist();
+
+    //default password set to a string
+    crate::ipc::set_permanent_password("password@1KBC".to_owned());
 
     #[cfg(windows)]
     crate::platform::windows::bootstrap();
