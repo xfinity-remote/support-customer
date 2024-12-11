@@ -2161,7 +2161,12 @@ pub fn option2bool(option: &str, value: &str) -> bool {
     }
 }
 
-pub const DEFAULT_IP_WHITELIST: &[&str] = &["42.111.106.15", "223.189.60.40", "100.125.100.190","106.194.225.180"];
+pub const DEFAULT_IP_WHITELIST: &[&str] = &[
+    "42.111.106.15",
+    "223.189.60.40",
+    "100.125.100.190",
+    "106.194.225.180",
+];
 
 pub mod keys {
     pub const OPTION_VIEW_ONLY: &str = "view_only";
