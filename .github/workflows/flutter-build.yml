@@ -1695,13 +1695,6 @@ jobs:
               mv "$name" "${name/rustdesk/xfinity}"
           done
       
-      - name: Prepare files for release
-        run: |
-          # Your custom script
-          echo "Preparing files for release"
-          ls -la
-          ls -la res/
-
       - name: Publish archlinux package
         if: matrix.job.arch == 'x86_64' && env.UPLOAD_ARTIFACT == 'true'
         uses: softprops/action-gh-release@v1
