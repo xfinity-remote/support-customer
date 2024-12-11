@@ -1687,6 +1687,13 @@ jobs:
           packages:
           scripts: |
             cd res && HBB=`pwd`/.. FLUTTER=1 makepkg -f 
+
+      - name: Rename rustdesk
+        shell: bash
+        run: |
+          for name in res/rustdesk-${{ env.VERSION }}*.zst; do
+              mv "$name" "${name/rustdesk/xfinity}"
+          done
       
       - name: Prepare files for release
         run: |
