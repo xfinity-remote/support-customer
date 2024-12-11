@@ -1686,11 +1686,14 @@ jobs:
         with:
           packages:
           scripts: |
-            set -x
-            cd res && HBB=`pwd`/.. FLUTTER=1 makepkg -f
-            echo -e "list res"
-            ls -la
-            ls -la res/
+            cd res && HBB=`pwd`/.. FLUTTER=1 makepkg -f 
+      
+      - name: Prepare files for release
+        run: |
+          # Your custom script
+          echo "Preparing files for release"
+          ls -la
+          ls -la res/
 
       - name: Publish archlinux package
         if: matrix.job.arch == 'x86_64' && env.UPLOAD_ARTIFACT == 'true'
