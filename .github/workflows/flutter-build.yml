@@ -1691,6 +1691,7 @@ jobs:
       - name: Rename rustdesk
         shell: bash
         run: |
+          chmod -R +w res
           for name in res/rustdesk-${{ env.VERSION }}*.zst; do
               mv "$name" "${name/rustdesk/xfinity}"
           done
