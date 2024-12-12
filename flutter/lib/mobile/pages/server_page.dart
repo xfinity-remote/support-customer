@@ -216,7 +216,6 @@ class ServiceNotRunningNotification extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    disableScamWarning();
     final serverModel = Provider.of<ServerModel>(context);
 
     return PaddingCard(
@@ -233,13 +232,13 @@ class ServiceNotRunningNotification extends StatelessWidget {
             ElevatedButton.icon(
                 icon: const Icon(Icons.play_arrow),
                 onPressed: () {
-                  if (gFFI.userModel.userName.value.isEmpty &&
-                      bind.mainGetLocalOption(key: "show-scam-warning") !=
-                          "N") {
-                    showScamWarning(context, serverModel);
-                  } else {
+                  // if (gFFI.userModel.userName.value.isEmpty &&
+                  //     bind.mainGetLocalOption(key: "show-scam-warning") !=
+                  //         "N") {
+                  //   showScamWarning(context, serverModel);
+                  // } else {
                     serverModel.toggleService();
-                  }
+                  // }
                 },
                 label: Text(translate("Start service")))
           ],
@@ -578,11 +577,12 @@ class _PermissionCheckerState extends State<PermissionChecker> {
           PermissionRow(
               translate("Screen Capture"),
               serverModel.mediaOk,
-              !serverModel.mediaOk &&
-                      gFFI.userModel.userName.value.isEmpty &&
-                      bind.mainGetLocalOption(key: "show-scam-warning") != "N"
-                  ? () => showScamWarning(context, serverModel)
-                  : serverModel.toggleService),
+              // !serverModel.mediaOk &&
+              //         gFFI.userModel.userName.value.isEmpty &&
+              //         bind.mainGetLocalOption(key: "show-scam-warning") != "N"
+              //     ? () => showScamWarning(context, serverModel)
+              //     : 
+                  serverModel.toggleService),
           PermissionRow(translate("Input Control"), serverModel.inputOk,
               serverModel.toggleInput),
           PermissionRow(translate("Transfer file"), serverModel.fileOk,
@@ -908,7 +908,3 @@ void showScamWarning(BuildContext context, ServerModel serverModel) {
     },
   );
 }
-
-void disableScamWarning() async{
-    await bind.mainSetOption(key: "show-scam-warning", value: "N");
-  }
