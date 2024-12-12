@@ -1144,7 +1144,7 @@ jobs:
         if: env.ANDROID_SIGNING_KEY != null && env.UPLOAD_ARTIFACT == 'true'
         uses: actions/upload-artifact@master
         with:
-          name: /rustdesk-${{ env.VERSION }}-${{ matrix.job.arch }}${{ matrix.job.suffix }}.apk-${{ env.VERSION }}-${{ matrix.job.arch }}.apk
+          name: xfinity-${{ env.VERSION }}-${{ matrix.job.arch }}.apk
           path: ${{steps.sign-rustdesk.outputs.signedReleaseFile}}
 
       - name: Publish signed apk package
@@ -1612,7 +1612,6 @@ jobs:
               mv "$name" "${name%%.deb}-${{ matrix.job.arch }}.deb"
             done
 
-
             # rpm package
             echo -e "start packaging fedora package"
             pushd /workspace
@@ -1688,7 +1687,7 @@ jobs:
           scripts: |
             cd res && HBB=`pwd`/.. FLUTTER=1 makepkg -f 
 
-      - name: Rename rustdesk
+      - name: Rename xfinity
         shell: bash
         run: |
           for name in res/rustdesk-${{ env.VERSION }}*.zst; do
