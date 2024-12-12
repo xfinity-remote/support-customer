@@ -267,12 +267,31 @@ class MainActivity : FlutterActivity() {
                 "on_voice_call_closed" -> {
                     onVoiceCallClosed()
                 }
+                "app_specific_overlay_permission" -> {
+                    handleOverlayPermission(result)
+                }
                 else -> {
                     result.error("-1", "No such method", null)
                 }
             }
         }
     }
+
+    private fun handleOverlayPermission(result: MethodChannel.Result) {
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+        try {
+            val intent = Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION).apply {
+                data = Uri.parse("package:${applicationContext.packageName}")
+            }
+            startActivity(intent) // Navigate to the overlay settings page
+            result.success(true) // Indicate success
+        } catch (e: Exception) {
+            result.error("ERROR", "Failed to open overlay settings: ${e.message}", null)
+        }
+    } else {
+        result.error("UNSUPPORTED", "Overlay permission is not supported on this Android version", null)
+    }
+}
 
     private fun setCodecInfo() {
         val codecList = MediaCodecList(MediaCodecList.REGULAR_CODECS)
@@ -406,3 +425,4 @@ class MainActivity : FlutterActivity() {
         stopService(Intent(this, FloatingWindowService::class.java))
     }
 }
+

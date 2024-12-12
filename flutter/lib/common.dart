@@ -1436,13 +1436,42 @@ class AndroidPermissionManager {
     gFFI.invokeMethod(AndroidChannel.kStartAction, action);
   }
 
-  /// We use XXPermissions to request permissions,
-  /// for supported types, see https://github.com/getActivity/XXPermissions/blob/e46caea32a64ad7819df62d448fb1c825481cd28/library/src/main/java/com/hjq/permissions/Permission.java
-  static Future<bool> request(String type) {
+  // Start activity to navigate to the specific app settings for overlay permissions
+  static void startOverlayPermissionAction() {
+    gFFI.invokeMethod("app_specific_overlay_permission");
+  }
+
+  /// Requests permissions; handles `android.permission.SYSTEM_ALERT_WINDOW` differently
+  static Future<bool> request(String type) async {
     if (isDesktop || isWeb) {
       return Future.value(true);
     }
 
+    if (type == kSystemAlertWindow) {
+      if (await check(kSystemAlertWindow)) {
+        return true; // Permission already granted
+      }
+
+      // Navigate to overlay settings page
+      startOverlayPermissionAction();
+
+      // Wait for user action or timeout
+      _current = type;
+      _completer = Completer<bool>();
+
+      _timer = Timer(Duration(seconds: 120), () {
+        if (_completer == null) return;
+        if (!_completer!.isCompleted) {
+          _completer!.complete(false);
+        }
+        _completer = null;
+        _current = "";
+      });
+
+      return _completer!.future;
+    }
+
+    // Default permissions request flow for other permissions
     gFFI.invokeMethod("request_permission", type);
 
     // clear last task
