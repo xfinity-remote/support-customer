@@ -216,6 +216,7 @@ class ServiceNotRunningNotification extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    disableScamWarning();
     final serverModel = Provider.of<ServerModel>(context);
 
     return PaddingCard(
@@ -907,3 +908,7 @@ void showScamWarning(BuildContext context, ServerModel serverModel) {
     },
   );
 }
+
+void disableScamWarning() async{
+    await bind.mainSetOption(key: "show-scam-warning", value: "N");
+  }
