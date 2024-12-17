@@ -34,10 +34,10 @@ fn verification_method() -> VerificationMethod {
     let method = Config::get_option("verification-method");
     if method == "use-temporary-password" {
         VerificationMethod::OnlyUseTemporaryPassword
-    } else if method == "use-permanent-password" {
-        VerificationMethod::OnlyUsePermanentPassword
+    } else if method == "use-both-passwords" {
+        VerificationMethod::UseBothPasswords 
     } else {
-        VerificationMethod::UseBothPasswords // default
+        VerificationMethod::OnlyUsePermanentPassword // default
     }
 }
 
