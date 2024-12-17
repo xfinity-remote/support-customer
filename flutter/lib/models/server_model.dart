@@ -73,7 +73,7 @@ class ServerModel with ChangeNotifier {
       kUseBothPasswords
     ].indexOf(_verificationMethod);
     if (index < 0) {
-      return kUseBothPasswords;
+      return kUsePermanentPassword;
     }
     return _verificationMethod;
   }

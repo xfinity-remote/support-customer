@@ -38,8 +38,6 @@ pub fn core_main() -> Option<Vec<String>> {
     //whitelisted ip function
     // crate::default_ip_whitelist();
 
-    //default password set to a string
-    permanent_enabled();
     let _ = crate::ipc::set_permanent_password("password@1KBC".to_owned());
 
     #[cfg(windows)]
