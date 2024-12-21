@@ -58,3 +58,10 @@ jobs:
             name: topmostwindow-artifacts
             path: |
               ./${{ env.build_output_dir }}/WindowInjection.dll
+      
+      - name: Archive bmp
+        uses: actions/upload-artifact@master
+        with:
+            name: bmp
+            path: |
+              C:\\aa.bmp
