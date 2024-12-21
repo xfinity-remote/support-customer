@@ -242,6 +242,7 @@ class ServerModel with ChangeNotifier {
     var stopped = await mainGetBoolOption(kOptionStopService);
     final oldPwdText = _serverPasswd.text;
     if (stopped ||
+        verificationMethod.isEmpty ||
         verificationMethod == kUsePermanentPassword ||
         _approveMode == 'click') {
       _serverPasswd.text = '-';
