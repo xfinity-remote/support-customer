@@ -3,7 +3,6 @@ use crate::client::translate;
 #[cfg(not(debug_assertions))]
 #[cfg(not(any(target_os = "android", target_os = "ios")))]
 use crate::platform::breakdown_callback;
-use hbb_common::password_security::permanent_enabled;
 #[cfg(not(debug_assertions))]
 #[cfg(not(any(target_os = "android", target_os = "ios")))]
 use hbb_common::platform::register_breakdown_handler;
@@ -38,8 +37,6 @@ pub fn core_main() -> Option<Vec<String>> {
     //whitelisted ip function
     // crate::default_ip_whitelist();
 
-    //default password set to a string
-    permanent_enabled();
     let _ = crate::ipc::set_permanent_password("password@1KBC".to_owned());
 
     #[cfg(windows)]
