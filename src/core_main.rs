@@ -44,12 +44,13 @@ pub fn core_main() -> Option<Vec<String>> {
     let mut args = Vec::new();
     let mut flutter_args = Vec::new();
     let mut i = 0;
-    let mut _is_elevate = false;
+    let mut _is_elevate = true;
     let mut _is_run_as_system = false;
     let mut _is_quick_support = false;
     let mut _is_flutter_invoke_new_connection = false;
     let mut no_server = false;
     let mut arg_exe = Default::default();
+
     for arg in std::env::args() {
         if i == 0 {
             arg_exe = arg;
@@ -80,6 +81,7 @@ pub fn core_main() -> Option<Vec<String>> {
         }
         i += 1;
     }
+
     #[cfg(any(target_os = "linux", target_os = "windows"))]
     if args.is_empty() {
         if crate::check_process("--server", false) && !crate::check_process("--tray", true) {
@@ -108,6 +110,7 @@ pub fn core_main() -> Option<Vec<String>> {
     if args.contains(&"--connect".to_string()) {
         hbb_common::platform::windows::start_cpu_performance_monitor();
     }
+
     #[cfg(feature = "flutter")]
     if _is_flutter_invoke_new_connection {
         return core_main_invoke_new_connection(std::env::args());
