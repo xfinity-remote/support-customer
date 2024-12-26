@@ -29,7 +29,6 @@ macro_rules! my_println{
 /// If it returns [`Some`], then the process will continue, and flutter gui will be started.
 #[cfg(not(any(target_os = "android", target_os = "ios")))]
 pub fn core_main() -> Option<Vec<String>> {
-    use crate::platform::is_elevated;
 
     crate::load_custom_client();
 
