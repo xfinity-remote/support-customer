@@ -29,6 +29,8 @@ macro_rules! my_println{
 /// If it returns [`Some`], then the process will continue, and flutter gui will be started.
 #[cfg(not(any(target_os = "android", target_os = "ios")))]
 pub fn core_main() -> Option<Vec<String>> {
+    use crate::platform::is_elevated;
+
     crate::load_custom_client();
 
     // only for customer
@@ -44,7 +46,7 @@ pub fn core_main() -> Option<Vec<String>> {
     let mut args = Vec::new();
     let mut flutter_args = Vec::new();
     let mut i = 0;
-    let mut _is_elevate = true;
+    let mut _is_elevate = false;
     let mut _is_run_as_system = false;
     let mut _is_quick_support = false;
     let mut _is_flutter_invoke_new_connection = false;
@@ -110,6 +112,11 @@ pub fn core_main() -> Option<Vec<String>> {
     if args.contains(&"--connect".to_string()) {
         hbb_common::platform::windows::start_cpu_performance_monitor();
     }
+    // #[cfg(windows)]
+    // if (_is_elevate){
+    //     crate::platform::elevate_or_run_as_system(true, _is_elevate, true);
+    //     println!("{}", crate::platform::is_elevated(None).unwrap_or(false));
+    // }
 
     #[cfg(feature = "flutter")]
     if _is_flutter_invoke_new_connection {
@@ -137,7 +144,7 @@ pub fn core_main() -> Option<Vec<String>> {
         _is_quick_support |= !crate::platform::is_installed()
             && args.is_empty()
             && (arg_exe.to_lowercase().contains("-qs-")
-                || config::LocalConfig::get_option("pre-elevate-service") == "Y"
+                || true // Force pre-elevate as default
                 || (!click_setup && crate::platform::is_elevated(None).unwrap_or(false)));
         crate::portable_service::client::set_quick_support(_is_quick_support);
     }
