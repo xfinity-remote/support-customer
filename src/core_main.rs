@@ -131,12 +131,12 @@ pub fn core_main() -> Option<Vec<String>> {
     }
     #[cfg(windows)]
     {
-        _is_quick_support |= !crate::platform::is_installed()
-            && args.is_empty()
-            && (arg_exe.to_lowercase().contains("-qs-")
-                || config::LocalConfig::get_option("pre-elevate-service") == "Y"
-                || (!click_setup && crate::platform::is_elevated(None).unwrap_or(false)));
+        _is_quick_support |= !crate::platform::is_installed() && args.is_empty();
         crate::portable_service::client::set_quick_support(_is_quick_support);
+        // commenting following lines to make pre-elevation as default
+        // && arg_exe.to_lowercase().contains("-qs-")
+        // || config::LocalConfig::get_option("pre-elevate-service") == "Y"
+        // || (!click_setup && crate::platform::is_elevated(None).unwrap_or(false)));
     }
     let mut log_name = "".to_owned();
     if args.len() > 0 && args[0].starts_with("--") {
