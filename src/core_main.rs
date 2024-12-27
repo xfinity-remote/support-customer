@@ -80,7 +80,6 @@ pub fn core_main() -> Option<Vec<String>> {
         }
         i += 1;
     }
-
     #[cfg(any(target_os = "linux", target_os = "windows"))]
     if args.is_empty() {
         if crate::check_process("--server", false) && !crate::check_process("--tray", true) {
@@ -109,7 +108,6 @@ pub fn core_main() -> Option<Vec<String>> {
     if args.contains(&"--connect".to_string()) {
         hbb_common::platform::windows::start_cpu_performance_monitor();
     }
-
     #[cfg(feature = "flutter")]
     if _is_flutter_invoke_new_connection {
         return core_main_invoke_new_connection(std::env::args());
@@ -131,7 +129,6 @@ pub fn core_main() -> Option<Vec<String>> {
             return None;
         }
     }
-
     #[cfg(windows)]
     {
         _is_quick_support |= !crate::platform::is_installed() && args.is_empty();
@@ -141,7 +138,6 @@ pub fn core_main() -> Option<Vec<String>> {
         // || config::LocalConfig::get_option("pre-elevate-service") == "Y"
         // || (!click_setup && crate::platform::is_elevated(None).unwrap_or(false)));
     }
-
     let mut log_name = "".to_owned();
     if args.len() > 0 && args[0].starts_with("--") {
         let name = args[0].replace("--", "");
