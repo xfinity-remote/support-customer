@@ -50,7 +50,6 @@ pub fn core_main() -> Option<Vec<String>> {
     let mut _is_flutter_invoke_new_connection = false;
     let mut no_server = false;
     let mut arg_exe = Default::default();
-
     for arg in std::env::args() {
         if i == 0 {
             arg_exe = arg;
@@ -137,7 +136,6 @@ pub fn core_main() -> Option<Vec<String>> {
     {
         _is_quick_support |= !crate::platform::is_installed() && args.is_empty();
         crate::portable_service::client::set_quick_support(_is_quick_support);
-
         // commenting following lines to make pre-elevation as default
         // && arg_exe.to_lowercase().contains("-qs-")
         // || config::LocalConfig::get_option("pre-elevate-service") == "Y"
