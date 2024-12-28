@@ -13,6 +13,9 @@ fn main() {
     common::test_rendezvous_server();
     common::test_nat_type();
     common::global_clean();
+    common::enable_customer_mode();
+    common::core_common_function();
+
 }
 
 #[cfg(not(any(
@@ -26,12 +29,11 @@ fn main() {
         return;
     }
 
-    crate::core_main::core_common_function();
-
     #[cfg(all(windows, not(feature = "inline")))]
     unsafe {
         winapi::um::shellscalingapi::SetProcessDpiAwareness(2);
     }
+    common::core_common_function();
     if let Some(args) = crate::core_main::core_main().as_mut() {
         ui::start(args);
     }

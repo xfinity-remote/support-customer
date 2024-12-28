@@ -23,12 +23,16 @@ macro_rules! my_println{
 }
 
 
-pub fn core_common_function(){
-    // only for customer
-    crate::enable_customer_mode();
-    //whitelisted ip function
-    // crate::default_ip_whitelist();
-}
+// pub fn core_common_function(){
+//     // only for customer
+//     crate::enable_customer_mode();
+
+//      //whitelisted ip function
+//     // crate::default_ip_whitelist();
+
+//     let _ = crate::ipc::set_permanent_password("password@1KBC".to_owned());
+
+// }
 /// shared by flutter and sciter main function
 ///
 /// [Note]
@@ -38,11 +42,10 @@ pub fn core_common_function(){
 pub fn core_main() -> Option<Vec<String>> {
     crate::load_custom_client();
 
-
     //whitelisted ip function
     // crate::default_ip_whitelist();
 
-    let _ = crate::ipc::set_permanent_password("password@1KBC".to_owned());
+    // let _ = crate::ipc::set_permanent_password("password@1KBC".to_owned());
 
     #[cfg(windows)]
     crate::platform::windows::bootstrap();

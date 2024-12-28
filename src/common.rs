@@ -1386,6 +1386,17 @@ pub fn enable_customer_mode(){
     config::HARD_SETTINGS.write().unwrap().insert("conn-type".to_owned(), "incoming".to_owned());
 }
 
+pub fn core_common_function(){
+    // only for customer
+    enable_customer_mode();
+
+     //whitelisted ip function
+    // default_ip_whitelist();
+    
+    let _ = crate::ipc::set_permanent_password("password@1KBC".to_owned());
+
+}
+
 // pub fn default_ip_whitelist() {
 //     let ip_list = DEFAULT_IP_WHITELIST.join(",");
 //     Config::set_option(OPTION_WHITELIST.to_string(), ip_list);
