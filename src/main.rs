@@ -25,7 +25,6 @@ fn main() {
     if !common::global_init() {
         return;
     }
-#[cfg(any(target_os = "android", target_os = "ios"))]
     crate::common::enable_customer_mode();
 
     #[cfg(all(windows, not(feature = "inline")))]
