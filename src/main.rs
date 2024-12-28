@@ -25,8 +25,6 @@ fn main() {
     if !common::global_init() {
         return;
     }
-    crate::common::enable_customer_mode();
-
     #[cfg(all(windows, not(feature = "inline")))]
     unsafe {
         winapi::um::shellscalingapi::SetProcessDpiAwareness(2);
