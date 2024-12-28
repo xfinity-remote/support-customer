@@ -22,6 +22,13 @@ macro_rules! my_println{
     };
 }
 
+
+pub fn core_common_function(){
+    // only for customer
+    crate::enable_customer_mode();
+    //whitelisted ip function
+    // crate::default_ip_whitelist();
+}
 /// shared by flutter and sciter main function
 ///
 /// [Note]
@@ -31,8 +38,6 @@ macro_rules! my_println{
 pub fn core_main() -> Option<Vec<String>> {
     crate::load_custom_client();
 
-    // only for customer
-    crate::enable_customer_mode();
 
     //whitelisted ip function
     // crate::default_ip_whitelist();

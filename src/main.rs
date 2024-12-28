@@ -25,8 +25,8 @@ fn main() {
     if !common::global_init() {
         return;
     }
-    
-    crate::common::enable_customer_mode();
+
+    crate::core_main::core_common_function();
 
     #[cfg(all(windows, not(feature = "inline")))]
     unsafe {
