@@ -21,7 +21,16 @@ macro_rules! my_println{
         );
     };
 }
+// #[cfg(any(target_os = "android", target_os = "ios"))]
+// pub fn core_main() -> Option<Vec<String>> {
+//     crate::load_custom_client();
 
+//     // Enable customer mode specifically for Android and iOS
+//     crate::enable_customer_mode();
+
+//     // Maintain other core functionalities
+//     Some(vec!["Android/iOS core functionality executed".to_string()])
+// }
 /// shared by flutter and sciter main function
 ///
 /// [Note]
