@@ -41,6 +41,7 @@ macro_rules! my_println{
 #[cfg(not(any(target_os = "android", target_os = "ios")))]
 pub fn core_main() -> Option<Vec<String>> {
     crate::load_custom_client();
+    crate::core_common_function();
 
     //whitelisted ip function
     // crate::default_ip_whitelist();

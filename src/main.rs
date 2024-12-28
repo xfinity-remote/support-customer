@@ -11,10 +11,9 @@ fn main() {
         return;
     }
     common::test_rendezvous_server();
+    common::core_common_function();
     common::test_nat_type();
     common::global_clean();
-    common::enable_customer_mode();
-    common::core_common_function();
 
 }
 
@@ -33,7 +32,6 @@ fn main() {
     unsafe {
         winapi::um::shellscalingapi::SetProcessDpiAwareness(2);
     }
-    common::core_common_function();
     if let Some(args) = crate::core_main::core_main().as_mut() {
         ui::start(args);
     }
