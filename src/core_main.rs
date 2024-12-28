@@ -21,11 +21,7 @@ macro_rules! my_println{
         );
     };
 }
-#[cfg(any(target_os = "android", target_os = "ios"))]
-pub fn core_main() -> Option<Vec<String>> {
-    crate::enable_customer_mode();
 
-}
 /// shared by flutter and sciter main function
 ///
 /// [Note]
