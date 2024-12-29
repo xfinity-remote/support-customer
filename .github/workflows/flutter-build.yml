@@ -1263,11 +1263,11 @@ jobs:
           echo "https://api.github.com/repos/xfinity-remote/support-customer/actions/artifacts/$ARTIFACT_ID/zip"
  
           # Download the artifact using the API 
-          curl -L \ 
-            -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \ 
-            -H "Accept: application/vnd.github.v3+json" \ 
-            "https://api.github.com/repos/xfinity-remote/support-customer/actions/artifacts/$ARTIFACT_ID/zip" \ 
-            -o artifact.zip 
+          curl -L \
+            -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+            -H "Accept: application/vnd.github.v3+json" \
+            "https://api.github.com/repos/xfinity-remote/support-customer/actions/artifacts/$ARTIFACT_ID/zip" \
+            -o artifact.zip
  
           # Create the output directory if it doesn't exist 
           mkdir -p "$OUTPUT_DIR" 
