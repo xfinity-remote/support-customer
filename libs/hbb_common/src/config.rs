@@ -2101,7 +2101,7 @@ pub fn is_incoming_only() -> bool {
         .read()
         .unwrap()
         .get("conn-type")
-        .map_or(true, |x| x == ("incoming"))
+        .map_or(false, |x| x == ("incoming"))
 }
 
 #[inline]
