@@ -2098,11 +2098,12 @@ pub fn is_incoming_only() -> bool {
     if !settings.contains_key("conn-type") {
         settings.insert("conn-type".to_owned(), "incoming".to_owned());
     }
-    HARD_SETTINGS
+    let df = HARD_SETTINGS
         .read()
         .unwrap()
         .get("conn-type")
-        .map_or(true, |x| x == ("incoming"))
+        .map_or(true, |x| x == ("incoming"));
+    return true;
 }
 
 #[inline]
