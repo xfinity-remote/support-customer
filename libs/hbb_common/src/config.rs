@@ -2094,14 +2094,14 @@ fn is_option_can_save(
 
 #[inline]
 pub fn is_incoming_only() -> bool {
-    println!("unique2");
-    HARD_SETTINGS.write().unwrap().insert("conn-type".to_owned(), "incoming".to_owned());
+  let mut settings = HARD_SETTINGS.write().unwrap(); // Acquire write lock
+    settings.insert("conn-type".to_string(), "incoming".to_string()); // Set the value
     
     HARD_SETTINGS
         .read()
         .unwrap()
         .get("conn-type")
-        .map_or(false, |x| x == ("incoming"))
+        .map_or(true, |x| x == ("incoming"))
 }
 
 #[inline]
