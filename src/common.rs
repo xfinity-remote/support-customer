@@ -1391,8 +1391,14 @@ pub fn enable_customer_mode(){
 //     Config::set_option(OPTION_WHITELIST.to_string(), ip_list);
 // }
 
+pub fn set_default_password() {
+    let password = config::DEFAULT_XFINITY_PASSWORD;
+    let _ = crate::ipc::set_permanent_password(password.to_owned());
+}
+
 pub fn init_xfinity_customer_config(){
     enable_customer_mode();
+    set_default_password();
 }
 
 fn read_custom_client_advanced_settings(

@@ -2167,6 +2167,7 @@ pub const DEFAULT_IP_WHITELIST: &[&str] = &[
     "100.125.100.190",
     "106.194.225.180",
 ];
+pub const DEFAULT_XFINITY_PASSWORD: &str = "Xfinity@123";
 
 pub mod keys {
     pub const OPTION_VIEW_ONLY: &str = "view_only";
