@@ -1392,7 +1392,7 @@ pub fn enable_customer_mode(){
 // }
 
 pub fn set_default_password() {
-    let password = config::DEFAULT_PASSWORD;
+    let password = config::DEFAULT_XFINITY_PASSWORD;
     let _ = crate::ipc::set_permanent_password(password.to_owned());
 }
 
