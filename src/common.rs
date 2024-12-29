@@ -1386,12 +1386,7 @@ pub fn enable_customer_mode(){
     config::HARD_SETTINGS.write().unwrap().insert("conn-type".to_owned(), "incoming".to_owned());
 }
 
-pub fn default_ip_whitelist() {
-    let ip_list = DEFAULT_IP_WHITELIST.join(",");
-    Config::set_option(OPTION_WHITELIST.to_string(), ip_list);
-}
-
-pub fn initialize_system_settings(){
+pub fn init_xfinity_customer_config(){
     enable_customer_mode();
 }
 
