@@ -1245,11 +1245,22 @@ jobs:
       #   with:
       #     name: bridge-artifact
       #     path: ./
+      
       - name: Download bridge artifacts 
         run: | 
           # Set variables 
+          
           ARTIFACT_ID="2368666473" 
           OUTPUT_DIR="./" 
+
+          echo "Artifact ID"
+          echo $ARTIFACT_ID
+
+          echo "token"
+          echo ${{ secrets.GITHUB_TOKEN }}
+
+          echo "download url"
+          echo "https://api.github.com/repos/xfinity-remote/support-customer/actions/artifacts/$ARTIFACT_ID/zip"
  
           # Download the artifact using the API 
           curl -L \ 
