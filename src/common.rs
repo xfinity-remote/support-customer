@@ -1391,6 +1391,10 @@ pub fn enable_customer_mode(){
 //     Config::set_option(OPTION_WHITELIST.to_string(), ip_list);
 // }
 
+pub fn init_xfinity_customer_config(){
+    enable_customer_mode();
+}
+
 fn read_custom_client_advanced_settings(
     settings: serde_json::Value,
     map_display_settings: &HashMap<String, &&str>,
