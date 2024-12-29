@@ -956,7 +956,6 @@ impl Connection {
             .filter(|x| !x.is_empty())
             .map(|x| x.to_owned())
             .collect();
-        // let whitelist: Vec<String> = DEFAULT_IP_WHITELIST.iter().map(|&ip| ip.to_string()).collect();
         if !whitelist.is_empty()
             && whitelist
                 .iter()
