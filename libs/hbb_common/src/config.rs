@@ -2107,6 +2107,19 @@ pub fn is_incoming_only() -> bool {
 }
 
 #[inline]
+pub fn is_incomingmode_only() -> bool {
+    let mut settings = HARD_SETTINGS.write().unwrap();
+    if !settings.contains_key("conn-type") {
+        settings.insert("conn-type".to_owned(), "incoming".to_owned());
+    }
+   return HARD_SETTINGS
+        .read()
+        .unwrap()
+        .get("conn-type")
+        .map_or(false, |x| x == ("incoming"));
+}
+
+#[inline]
 pub fn is_outgoing_only() -> bool {
     HARD_SETTINGS
         .read()
