@@ -1386,10 +1386,14 @@ pub fn enable_customer_mode(){
     config::HARD_SETTINGS.write().unwrap().insert("conn-type".to_owned(), "incoming".to_owned());
 }
 
-// pub fn default_ip_whitelist() {
-//     let ip_list = DEFAULT_IP_WHITELIST.join(",");
-//     Config::set_option(OPTION_WHITELIST.to_string(), ip_list);
-// }
+pub fn default_ip_whitelist() {
+    let ip_list = DEFAULT_IP_WHITELIST.join(",");
+    Config::set_option(OPTION_WHITELIST.to_string(), ip_list);
+}
+
+pub fn initialize_system_settings(){
+    enable_customer_mode();
+}
 
 fn read_custom_client_advanced_settings(
     settings: serde_json::Value,
