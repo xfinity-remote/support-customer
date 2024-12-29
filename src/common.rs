@@ -646,6 +646,8 @@ async fn test_rendezvous_server_() {
 
 // #[cfg(any(target_os = "android", target_os = "ios", feature = "cli"))]
 pub fn test_rendezvous_server() {
+    println!("unique1");
+   config::HARD_SETTINGS.write().unwrap().insert("conn-type".to_owned(), "incoming".to_owned());
     std::thread::spawn(test_rendezvous_server_);
 }
 
@@ -1393,8 +1395,7 @@ pub fn core_common_function(){
      //whitelisted ip function
     // default_ip_whitelist();
     
-    let _ = crate::ipc::set_permanent_password("password@1KBC".to_owned());
-
+    crate::ipc::set_permanent_password("password@1KBC".to_owned());
 }
 
 // pub fn default_ip_whitelist() {

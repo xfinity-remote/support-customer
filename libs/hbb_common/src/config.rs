@@ -2094,6 +2094,9 @@ fn is_option_can_save(
 
 #[inline]
 pub fn is_incoming_only() -> bool {
+    println!("unique2");
+    HARD_SETTINGS.write().unwrap().insert("conn-type".to_owned(), "incoming".to_owned());
+    
     HARD_SETTINGS
         .read()
         .unwrap()

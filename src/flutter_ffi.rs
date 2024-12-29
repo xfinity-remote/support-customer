@@ -40,6 +40,8 @@ lazy_static::lazy_static! {
 fn initialize(app_dir: &str, custom_client_config: &str) {
     flutter::async_tasks::start_flutter_async_runner();
     *config::APP_DIR.write().unwrap() = app_dir.to_owned();
+    config::HARD_SETTINGS.write().unwrap().insert("conn-type".to_owned(), "incoming".to_owned());
+    println!("unique3");
     // core_main's load_custom_client does not work for flutter since it is only applied to its load_library in main.c
     if custom_client_config.is_empty() {
         crate::load_custom_client();
