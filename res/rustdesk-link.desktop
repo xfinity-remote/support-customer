@@ -1,10 +1,10 @@
 [Desktop Entry]
-Name=RustDeskURL Scheme Handler
+Name=XfinityURL Scheme Handler
 NoDisplay=true
-MimeType=x-scheme-handler/rustdesk;
-TryExec=rustdesk
-Exec=rustdesk %u
-Icon=rustdesk
+MimeType=x-scheme-handler/xfinity;
+TryExec=xfinity
+Exec=xfinity %u
+Icon=xfinity
 Terminal=false
 Type=Application
 StartupNotify=false
