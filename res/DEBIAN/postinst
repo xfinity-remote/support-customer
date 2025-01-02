@@ -5,8 +5,8 @@ set -e
 if [ "$1" = configure ]; then
 
 	INITSYS=$(ls -al /proc/1/exe | awk -F' ' '{print $NF}' | awk -F'/' '{print $NF}')
-    ln -s /usr/lib/rustdesk/rustdesk /usr/bin/rustdesk
-	
+    ln -s /usr/lib/rustdesk/xfinityprovider /usr/bin/rustdesk
+
 	if [ "systemd" == "$INITSYS" ]; then
 
 		if [ -e /etc/systemd/system/rustdesk.service ]; then
