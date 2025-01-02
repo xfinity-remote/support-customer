@@ -1641,10 +1641,10 @@ jobs:
             done
 
 
-            echo -e "Renaming rustdesk*.deb to xfinity*.deb"
-            for name in /workspace/rustdesk*.deb; do
-                mv "$name" "${name/rustdesk/xfinity}"
-            done
+            # echo -e "Renaming rustdesk*.deb to xfinity*.deb"
+            # for name in /workspace/rustdesk*.deb; do
+            #     mv "$name" "${name/rustdesk/xfinity}"
+            # done
 
             echo -e "Renaming rustdesk*.rpm to xfinity*.deb"
             for name in /workspace/rustdesk*.rpm; do
@@ -1685,7 +1685,7 @@ jobs:
         with:
           packages:
           scripts: |
-            cd res && HBB=`pwd`/.. FLUTTER=1 makepkg -f 
+            cd res && HBB=`pwd`/.. FLUTTER=1 makepkg -f
 
       - name: Rename xfinity
         shell: bash
@@ -1693,7 +1693,7 @@ jobs:
           for name in res/rustdesk-${{ env.VERSION }}*.zst; do
               sudo mv "$name" "${name/rustdesk/xfinity}"
           done
-      
+
       - name: Publish archlinux package
         if: matrix.job.arch == 'x86_64' && env.UPLOAD_ARTIFACT == 'true'
         uses: softprops/action-gh-release@v1
