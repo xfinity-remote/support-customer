@@ -1640,12 +1640,6 @@ jobs:
                 mv "$name" /workspace/"${name%%.rpm}-suse.rpm"
             done
 
-
-            # echo -e "Renaming rustdesk*.deb to xfinity*.deb"
-            # for name in /workspace/rustdesk*.deb; do
-            #     mv "$name" "${name/rustdesk/xfinity}"
-            # done
-
             echo -e "Renaming rustdesk*.rpm to xfinity*.deb"
             for name in /workspace/rustdesk*.rpm; do
                 mv "$name" "${name/rustdesk/xfinity}"
