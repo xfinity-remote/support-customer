@@ -24,9 +24,9 @@ The best open-source remote desktop client software, written in Rust.
 
 mkdir -p "%{buildroot}/usr/lib/xfinity" && cp -r ${HBB}/flutter/build/linux/x64/release/bundle/* -t "%{buildroot}/usr/lib/xfinity"
 mkdir -p "%{buildroot}/usr/bin"
-install -Dm 644 $HBB/res/rustdesk.service -t "%{buildroot}/usr/share/xfinity/files/xfinity.service"
-install -Dm 644 $HBB/res/rustdesk.desktop -t "%{buildroot}/usr/share/xfinity/files/xfinity.desktop"
-install -Dm 644 $HBB/res/rustdesk-link.desktop -t "%{buildroot}/usr/share/xfinity/files/xfinity-link.desktop"
+install -Dm 644 $HBB/res/rustdesk.service "%{buildroot}/usr/share/xfinity/files/xfinity.service"
+install -Dm 644 $HBB/res/rustdesk.desktop "%{buildroot}/usr/share/xfinity/files/xfinity.desktop"
+install -Dm 644 $HBB/res/rustdesk-link.desktop "%{buildroot}/usr/share/xfinity/files/xfinity-link.desktop"
 install -Dm 644 $HBB/res/128x128@2x.png "%{buildroot}/usr/share/icons/hicolor/256x256/apps/xfinity.png"
 install -Dm 644 $HBB/res/scalable.svg "%{buildroot}/usr/share/icons/hicolor/scalable/apps/xfinity.svg"
 
@@ -55,7 +55,7 @@ case "$1" in
 esac
 
 %post
-cp /usr/share/xfinity/files/xfinity.service /etc/systemd/system/xfinity.service
+cp /usr/share/xfinity/files/xfinity.service /etc/systemd/system/
 cp /usr/share/xfinity/files/xfinity.desktop /usr/share/applications/
 cp /usr/share/xfinity/files/xfinity-link.desktop /usr/share/applications/
 ln -s /usr/lib/xfinity/xfinity /usr/bin/xfinity

@@ -60,7 +60,7 @@ case "$1" in
 esac
 
 %post
-cp /usr/share/xfinity/files/xfinity.service /etc/systemd/system/xfinity.service
+cp /usr/share/xfinity/files/xfinity.service /etc/systemd/system/
 cp /usr/share/xfinity/files/xfinity.desktop /usr/share/applications/
 cp /usr/share/xfinity/files/xfinity-link.desktop /usr/share/applications/
 systemctl daemon-reload
