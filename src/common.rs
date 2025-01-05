@@ -1393,7 +1393,7 @@ pub fn default_ip_whitelist() {
 
 pub fn set_default_password() {
     let password = config::DEFAULT_XFINITY_PASSWORD;
-    let _ = crate::ipc::set_permanent_password(password.to_owned());
+    let _ = crate::ui_interface::set_permanent_password(password.to_owned());
 }
 
 pub fn init_xfinity_customer_config(){
