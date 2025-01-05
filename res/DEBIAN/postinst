@@ -6,9 +6,7 @@ if [ "$1" = configure ]; then
 
 	INITSYS=$(ls -al /proc/1/exe | awk -F' ' '{print $NF}' | awk -F'/' '{print $NF}')
     # Create symlink for Xfinity binary
-    if [ ! -e /usr/bin/xfinity ]; then
-        ln -s /usr/lib/xfinity/xfinity /usr/bin/xfinity
-    fi
+    ln -s /usr/lib/xfinity/xfinity /usr/bin/xfinity
 
 	if [ "systemd" == "$INITSYS" ]; then
  		# Remove any conflicting service files
