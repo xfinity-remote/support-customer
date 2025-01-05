@@ -28,7 +28,7 @@ package() {
   mkdir -p "${pkgdir}/usr/bin"
   pushd ${pkgdir} && ln -s /usr/lib/xfinity/xfinity usr/bin/xfinity && popd
   install -Dm 644 $HBB/res/rustdesk.service "${pkgdir}/usr/share/xfinity/files/xfinity.service"
-  install -Dm 644 $HBB/res/rustdesk.desktop "${pkgdir}/usr/share/rustdesk/files/xfinity.desktop"
+  install -Dm 644 $HBB/res/rustdesk.desktop "${pkgdir}/usr/share/xfinity/files/xfinity.desktop"
   install -Dm 644 $HBB/res/rustdesk-link.desktop "${pkgdir}/usr/share/xfinity/files/xfinity-link.desktop"
   install -Dm 644 $HBB/res/128x128@2x.png "${pkgdir}/usr/share/icons/hicolor/256x256/apps/xfinity.png"
   install -Dm 644 $HBB/res/scalable.svg "${pkgdir}/usr/share/icons/hicolor/scalable/apps/xfinity.svg"
