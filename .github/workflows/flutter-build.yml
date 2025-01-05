@@ -1681,13 +1681,6 @@ jobs:
           scripts: |
             cd res && HBB=`pwd`/.. FLUTTER=1 makepkg -f
 
-      - name: Rename xfinity
-        shell: bash
-        run: |
-          for name in res/rustdesk-${{ env.VERSION }}*.zst; do
-              sudo mv "$name" "${name/rustdesk/xfinity}"
-          done
-
       - name: Publish archlinux package
         if: matrix.job.arch == 'x86_64' && env.UPLOAD_ARTIFACT == 'true'
         uses: softprops/action-gh-release@v1
