@@ -1622,7 +1622,7 @@ jobs:
             esac
             HBB=`pwd` rpmbuild ./res/rpm-flutter.spec -bb
             pushd ~/rpmbuild/RPMS/${{ matrix.job.arch }}
-            for name in rustdesk*??.rpm; do
+            for name in xfinity*??.rpm; do
                 mv "$name" /workspace/"${name%%.rpm}.rpm"
             done
 
@@ -1636,14 +1636,10 @@ jobs:
             esac
             HBB=`pwd` rpmbuild ./res/rpm-flutter-suse.spec -bb
             pushd ~/rpmbuild/RPMS/${{ matrix.job.arch }}
-            for name in rustdesk*??.rpm; do
+            for name in xfinity*??.rpm; do
                 mv "$name" /workspace/"${name%%.rpm}-suse.rpm"
             done
 
-            echo -e "Renaming rustdesk*.rpm to xfinity*.deb"
-            for name in /workspace/rustdesk*.rpm; do
-                mv "$name" "${name/rustdesk/xfinity}"
-            done
 
       - name: Publish debian/rpm package
         if: env.UPLOAD_ARTIFACT == 'true'
