@@ -1608,7 +1608,7 @@ jobs:
             export CARGO_INCREMENTAL=0
             export DEB_ARCH=${{ matrix.job.deb_arch }}
             python3 ./build.py --flutter --skip-cargo
-            for name in rustdesk*??.deb; do
+            for name in xfinity*??.deb; do
               mv "$name" "${name%%.deb}-${{ matrix.job.arch }}.deb"
             done
 
@@ -1638,12 +1638,6 @@ jobs:
             pushd ~/rpmbuild/RPMS/${{ matrix.job.arch }}
             for name in rustdesk*??.rpm; do
                 mv "$name" /workspace/"${name%%.rpm}-suse.rpm"
-            done
-
-
-            echo -e "Renaming rustdesk*.deb to xfinity*.deb"
-            for name in /workspace/rustdesk*.deb; do
-                mv "$name" "${name/rustdesk/xfinity}"
             done
 
             echo -e "Renaming rustdesk*.rpm to xfinity*.deb"
@@ -1685,15 +1679,8 @@ jobs:
         with:
           packages:
           scripts: |
-            cd res && HBB=`pwd`/.. FLUTTER=1 makepkg -f 
+            cd res && HBB=`pwd`/.. FLUTTER=1 makepkg -f
 
-      - name: Rename xfinity
-        shell: bash
-        run: |
-          for name in res/rustdesk-${{ env.VERSION }}*.zst; do
-              sudo mv "$name" "${name/rustdesk/xfinity}"
-          done
-      
       - name: Publish archlinux package
         if: matrix.job.arch == 'x86_64' && env.UPLOAD_ARTIFACT == 'true'
         uses: softprops/action-gh-release@v1
