@@ -17,7 +17,7 @@ The following table provides detailed information about each build file, its tar
 | `xfinity-{version}-armv7.apk`           | Android          | ARMv7            | For older Android devices with ARMv7 architecture.                             |
 | `xfinity-{version}-universal.apk`       | Android          | Universal        | A universal APK that works on most Android architectures.                      |
 | `xfinity-{version}-unsigned.tar.gz`     | Linux            | Source           | Source code for building the application manually on Linux systems.            |
-| `xfinity-{version}-x86-sciter.exe`      | Windows          | x86              | A lightweight version for x86 Windows systems using Sciter UI.                 |
+| `xfinity-{version}-x86-sciter.exe`      | Windows          | x86              | A lightweight version for x86 Windows systems using Sciter UI (Depricated).    |
 | `xfinity-{version}-x86_64-x86_64.dmg`   | macOS            | x86_64           | For macOS running on Intel processors.                                         |
 | `xfinity-{version}-x86_64.apk`          | Android          | x86_64           | For Android devices with x86_64 architecture.                                  |
 | `xfinity-{version}-x86_64.deb`          | Linux (Debian)   | x86_64           | For Debian-based Linux systems (e.g., Ubuntu), distributed in DEB format.      |
