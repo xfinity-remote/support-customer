@@ -3,7 +3,7 @@
 - [Nightly Builds](https://github.com/xfinity-remote/support-customer/releases/tag/nightly)
 - [Nightly Pipelines](https://github.com/xfinity-remote/support-customer/actions/workflows/flutter-nightly.yml)
 
-## Xfinity Build Files
+## Xfinity Customer Build Files
 
 Below is a table that maps each build file to its respective operating system:
 
