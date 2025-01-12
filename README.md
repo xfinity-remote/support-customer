@@ -3,6 +3,11 @@
 - [Nightly Builds](https://github.com/xfinity-remote/support-customer/releases/tag/nightly)
 - [Nightly Pipelines](https://github.com/xfinity-remote/support-customer/actions/workflows/flutter-nightly.yml)
 
+## Provider
+
+- [Nightly Builds](https://github.com/xfinity-remote/support-provider/releases/tag/nightly)
+- [Nightly Pipelines](https://github.com/xfinity-remote/support-provider/actions/workflows/flutter-nightly.yml)
+
 ## Xfinity Customer Build Files
 
 The following table provides detailed information about each build file, its target platform, supported architecture, and a brief description.
@@ -24,8 +29,3 @@ The following table provides detailed information about each build file, its tar
 | `xfinity-{version}-x86_64.exe`          | Windows          | x86_64           | Standard installer for 64-bit Windows systems.                                 |
 | `xfinity-{version}-x86_64.msi`          | Windows          | x86_64           | MSI installer for 64-bit Windows systems, suitable for enterprise deployments. |
 | **Source Code**                         | Cross-platform   | Source           | Provided in `.zip` and `.tar.gz` formats for manual builds.                    |
-
-## Provider
-
-- [Nightly Builds](https://github.com/xfinity-remote/support-provider/releases/tag/nightly)
-- [Nightly Pipelines](https://github.com/xfinity-remote/support-provider/actions/workflows/flutter-nightly.yml)
