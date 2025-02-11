@@ -38,19 +38,11 @@ lazy_static::lazy_static! {
 }
 
 fn initialize(app_dir: &str, custom_client_config: &str) {
-
-    set_option("custom-rendezvous-server".to_string(), "178.156.155.176:21116".to_string());
-    set_option("relay-server".to_string(), "178.156.155.176:21117".to_string());
-    set_option("key".to_string(), "PPBhIlUaRLzZqcJCBoQ5PZu3qvXcX261l3hsq60SLm4=".to_string());
-
     flutter::async_tasks::start_flutter_async_runner();
     *config::APP_DIR.write().unwrap() = app_dir.to_owned();
     // core_main's load_custom_client does not work for flutter since it is only applied to its load_library in main.c
     if custom_client_config.is_empty() {
         crate::load_custom_client();
-        set_option("custom-rendezvous-server".to_string(), "178.156.155.176:21116".to_string());
-        set_option("relay-server".to_string(), "178.156.155.176:21117".to_string());
-        set_option("key".to_string(), "PPBhIlUaRLzZqcJCBoQ5PZu3qvXcX261l3hsq60SLm4=".to_string());
     } else {
         crate::read_custom_client(custom_client_config);
     }
@@ -857,20 +849,14 @@ pub fn main_set_option(key: String, value: String) {
         );
     }
 
-    if key == "custom-rendezvous-server" {
-        set_option(key, "178.156.155.176:21116".to_string()); // ID Server
-    } else if key == "relay-server" {
-        set_option(key, "178.156.155.176:21117".to_string()); // Relay Server
-    } else if key == "key" {
-        set_option(key, "PPBhIlUaRLzZqcJCBoQ5PZu3qvXcX261l3hsq60SLm4=".to_string()); // Encryption Key
-    } else {
-        // Default behavior for other options
-        set_option(key, value.clone());
-    }
-
-    #[cfg(target_os = "android")]
     if key.eq("custom-rendezvous-server") {
+        set_option(key, value.clone());
+        #[cfg(target_os = "android")]
         crate::rendezvous_mediator::RendezvousMediator::restart();
+        #[cfg(any(target_os = "android", target_os = "ios", feature = "cli"))]
+        crate::common::test_rendezvous_server();
+    } else {
+        set_option(key, value.clone());
     }
 }
 
