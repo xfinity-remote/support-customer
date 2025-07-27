@@ -5,8 +5,8 @@ set -e
 case $1 in
     remove|upgrade)
 		INITSYS=$(ls -al /proc/1/exe | awk -F' ' '{print $NF}' | awk -F'/' '{print $NF}')
-        rm /usr/bin/xfinity
-
+		rm -f /usr/bin/xfinity
+		
 		if [ "systemd" == "${INITSYS}" ]; then
 
 			systemctl stop xfinity || true

@@ -1,13 +1,3 @@
-use std::{
-    collections::HashMap,
-    ffi::c_void,
-    num::NonZeroI64,
-    sync::{
-        atomic::{AtomicUsize, Ordering},
-        Arc, RwLock,
-    },
-};
-
 #[cfg(not(any(target_os = "android", target_os = "ios")))]
 use crate::clipboard::{update_clipboard, ClipboardSide};
 #[cfg(not(any(target_os = "ios")))]
@@ -20,14 +10,19 @@ use crate::{
     common::get_default_sound_input,
     ui_session_interface::{InvokeUiSession, Session},
 };
-#[cfg(any(target_os = "windows", target_os = "linux", target_os = "macos"))]
+#[cfg(feature = "unix-file-copy-paste")]
+use crate::{clipboard::try_empty_clipboard_files, clipboard_file::unix_file_clip};
+#[cfg(any(
+    target_os = "windows",
+    all(target_os = "macos", feature = "unix-file-copy-paste")
+))]
 use clipboard::ContextSend;
 use crossbeam_queue::ArrayQueue;
 #[cfg(not(target_os = "ios"))]
 use hbb_common::tokio::sync::mpsc::error::TryRecvError;
 use hbb_common::{
     allow_err,
-    config::{self, PeerConfig, TransferSerde},
+    config::{self, LocalConfig, PeerConfig, TransferSerde},
     fs::{
         self, can_enable_overwrite_detection, get_job, get_string, new_send_confirm,
         DigestCheckResult, RemoveJobMeta,
@@ -44,9 +39,19 @@ use hbb_common::{
     },
     Stream,
 };
-#[cfg(any(target_os = "windows", target_os = "linux", target_os = "macos"))]
+#[cfg(any(target_os = "windows", feature = "unix-file-copy-paste"))]
 use hbb_common::{tokio::sync::Mutex as TokioMutex, ResultType};
 use scrap::CodecFormat;
+use std::{
+    collections::HashMap,
+    ffi::c_void,
+    num::NonZeroI64,
+    path::PathBuf,
+    sync::{
+        atomic::{AtomicUsize, Ordering},
+        Arc, RwLock,
+    },
+};
 
 pub struct Remote<T: InvokeUiSession> {
     handler: Session<T>,
@@ -63,7 +68,7 @@ pub struct Remote<T: InvokeUiSession> {
     last_update_jobs_status: (Instant, HashMap<i32, u64>),
     is_connected: bool,
     first_frame: bool,
-    #[cfg(any(target_os = "windows", target_os = "linux", target_os = "macos"))]
+    #[cfg(any(target_os = "windows", feature = "unix-file-copy-paste"))]
     client_conn_id: i32, // used for file clipboard
     data_count: Arc<AtomicUsize>,
     video_format: CodecFormat,
@@ -71,6 +76,8 @@ pub struct Remote<T: InvokeUiSession> {
     peer_info: ParsedPeerInfo,
     video_threads: HashMap<usize, VideoThread>,
     chroma: Arc<RwLock<Option<Chroma>>>,
+    last_record_state: bool,
+    sent_close_reason: bool,
 }
 
 #[derive(Default)]
@@ -78,6 +85,8 @@ struct ParsedPeerInfo {
     platform: String,
     is_installed: bool,
     idd_impl: String,
+    support_view_camera: bool,
+    support_terminal: bool,
 }
 
 impl ParsedPeerInfo {
@@ -106,7 +115,7 @@ impl<T: InvokeUiSession> Remote<T> {
             last_update_jobs_status: (Instant::now(), Default::default()),
             is_connected: false,
             first_frame: false,
-            #[cfg(any(target_os = "windows", target_os = "linux", target_os = "macos"))]
+            #[cfg(any(target_os = "windows", feature = "unix-file-copy-paste"))]
             client_conn_id: 0,
             data_count: Arc::new(AtomicUsize::new(0)),
             video_format: CodecFormat::Unknown,
@@ -116,14 +125,42 @@ impl<T: InvokeUiSession> Remote<T> {
             peer_info: Default::default(),
             video_threads: Default::default(),
             chroma: Default::default(),
+            last_record_state: false,
+            sent_close_reason: false,
         }
     }
 
     pub async fn io_loop(&mut self, key: &str, token: &str, round: u32) {
+        #[cfg(target_os = "windows")]
+        let _file_clip_context_holder = {
+            // `is_port_forward()` will not reach here, but we still check it for clarity.
+            if self.handler.is_default() {
+                // It is ok to call this function multiple times.
+                ContextSend::enable(true);
+                Some(crate::SimpleCallOnReturn {
+                    b: true,
+                    f: Box::new(|| {
+                        // No need to call `enable(false)` for sciter version, because each client of sciter version is a new process.
+                        // It's better to check if the peers are windows(support file copy&paste), but it's not necessary.
+                        #[cfg(feature = "flutter")]
+                        if !crate::flutter::sessions::has_sessions_running(ConnType::DEFAULT_CONN) {
+                            ContextSend::enable(false);
+                        };
+                    }),
+                })
+            } else {
+                None
+            }
+        };
+
         let mut last_recv_time = Instant::now();
         let mut received = false;
         let conn_type = if self.handler.is_file_transfer() {
             ConnType::FILE_TRANSFER
+        } else if self.handler.is_view_camera() {
+            ConnType::VIEW_CAMERA
+        } else if self.handler.is_terminal() {
+            ConnType::TERMINAL
         } else {
             ConnType::default()
         };
@@ -137,7 +174,7 @@ impl<T: InvokeUiSession> Remote<T> {
         )
         .await
         {
-            Ok(((mut peer, direct, pk), (feedback, rendezvous_server))) => {
+            Ok(((mut peer, direct, pk, kcp), (feedback, rendezvous_server))) => {
                 self.handler
                     .connection_round_state
                     .lock()
@@ -145,32 +182,36 @@ impl<T: InvokeUiSession> Remote<T> {
                     .set_connected();
                 self.handler.set_connection_type(peer.is_secured(), direct); // flutter -> connection_ready
                 self.handler.update_direct(Some(direct));
-                if conn_type == ConnType::DEFAULT_CONN {
+                if conn_type == ConnType::DEFAULT_CONN || conn_type == ConnType::VIEW_CAMERA {
                     self.handler
                         .set_fingerprint(crate::common::pk_to_fingerprint(pk.unwrap_or_default()));
                 }
 
                 // just build for now
-                #[cfg(not(any(target_os = "windows", target_os = "linux", target_os = "macos")))]
+                #[cfg(not(any(target_os = "windows", feature = "unix-file-copy-paste")))]
                 let (_tx_holder, mut rx_clip_client) = mpsc::unbounded_channel::<i32>();
 
-                #[cfg(any(target_os = "windows", target_os = "linux", target_os = "macos"))]
+                #[cfg(any(target_os = "windows", feature = "unix-file-copy-paste"))]
                 let (_tx_holder, rx) = mpsc::unbounded_channel();
-                #[cfg(any(target_os = "windows", target_os = "linux", target_os = "macos"))]
-                let mut rx_clip_client_lock = Arc::new(TokioMutex::new(rx));
-                #[cfg(any(target_os = "windows", target_os = "linux", target_os = "macos"))]
+                #[cfg(any(target_os = "windows", feature = "unix-file-copy-paste"))]
+                let mut rx_clip_client_holder = (Arc::new(TokioMutex::new(rx)), None);
+                #[cfg(any(target_os = "windows", feature = "unix-file-copy-paste"))]
                 {
-                    let is_conn_not_default = self.handler.is_file_transfer()
-                        || self.handler.is_port_forward()
-                        || self.handler.is_rdp();
-                    if !is_conn_not_default {
-                        log::debug!("get cliprdr client for conn_id {}", self.client_conn_id);
-                        (self.client_conn_id, rx_clip_client_lock) =
+                    if self.handler.is_default() {
+                        (self.client_conn_id, rx_clip_client_holder.0) =
                             clipboard::get_rx_cliprdr_client(&self.handler.get_id());
+                        log::debug!("get cliprdr client for conn_id {}", self.client_conn_id);
+                        let client_conn_id = self.client_conn_id;
+                        rx_clip_client_holder.1 = Some(crate::SimpleCallOnReturn {
+                            b: true,
+                            f: Box::new(move || {
+                                clipboard::remove_channel_by_conn_id(client_conn_id);
+                            }),
+                        });
                     };
                 }
-                #[cfg(any(target_os = "windows", target_os = "linux", target_os = "macos"))]
-                let mut rx_clip_client = rx_clip_client_lock.lock().await;
+                #[cfg(any(target_os = "windows", feature = "unix-file-copy-paste"))]
+                let mut rx_clip_client = rx_clip_client_holder.0.lock().await;
 
                 let mut status_timer =
                     crate::rustdesk_interval(time::interval(Duration::new(1, 0)));
@@ -218,8 +259,8 @@ impl<T: InvokeUiSession> Remote<T> {
                             }
                         }
                         _msg = rx_clip_client.recv() => {
-                            #[cfg(any(target_os="windows", target_os="linux", target_os = "macos"))]
-                           self.handle_local_clipboard_msg(&mut peer, _msg).await;
+                            #[cfg(any(target_os = "windows", feature = "unix-file-copy-paste"))]
+                            self.handle_local_clipboard_msg(&mut peer, _msg).await;
                         }
                         _ = self.timer.tick() => {
                             if last_recv_time.elapsed() >= SEC30 {
@@ -281,6 +322,13 @@ impl<T: InvokeUiSession> Remote<T> {
                 if let Some(s) = self.stop_voice_call_sender.take() {
                     s.send(()).ok();
                 }
+                if kcp.is_some() {
+                    // Send the close reason if it hasn't been sent yet, as KCP cannot detect the socket close event.
+                    self.send_close_reason(&mut peer, "kcp").await;
+                    // KCP does not send messages immediately, so wait to ensure the last message is sent.
+                    // 1ms works in my test, but 30ms is more reliable.
+                    tokio::time::sleep(Duration::from_millis(30)).await;
+                }
             }
             Err(err) => {
                 self.handler.on_establish_connection_error(err.to_string());
@@ -295,25 +343,20 @@ impl<T: InvokeUiSession> Remote<T> {
             .set_disconnected(round);
 
         #[cfg(not(target_os = "ios"))]
-        if _set_disconnected_ok {
+        if self.handler.is_default() && _set_disconnected_ok {
             Client::try_stop_clipboard();
         }
 
-        #[cfg(any(target_os = "windows", target_os = "linux", target_os = "macos"))]
-        if _set_disconnected_ok {
-            let conn_id = self.client_conn_id;
-            log::debug!("try empty cliprdr for conn_id {}", conn_id);
-            let _ = ContextSend::proc(|context| -> ResultType<()> {
-                context.empty_clipboard(conn_id)?;
-                Ok(())
-            });
+        #[cfg(any(target_os = "windows", feature = "unix-file-copy-paste"))]
+        if self.handler.is_default() && _set_disconnected_ok {
+            crate::clipboard::try_empty_clipboard_files(ClipboardSide::Client, self.client_conn_id);
         }
     }
 
-    #[cfg(any(target_os = "windows", target_os = "linux", target_os = "macos"))]
+    #[cfg(any(target_os = "windows", feature = "unix-file-copy-paste"))]
     async fn handle_local_clipboard_msg(
         &self,
-        peer: &mut crate::client::FramedStream,
+        peer: &mut Stream,
         msg: Option<clipboard::ClipboardFile>,
     ) {
         match msg {
@@ -341,8 +384,12 @@ impl<T: InvokeUiSession> Remote<T> {
                         view_only, stop, is_stopping_allowed, server_file_transfer_enabled, file_transfer_enabled
                     );
                     if stop {
-                        ContextSend::set_is_stopped();
+                        #[cfg(target_os = "windows")]
+                        {
+                            ContextSend::set_is_stopped();
+                        }
                     } else {
+                        #[cfg(target_os = "windows")]
                         if let Err(e) = ContextSend::make_sure_enabled() {
                             log::error!("failed to restart clipboard context: {}", e);
                             // to-do: Show msgbox with "Don't show again" option
@@ -395,7 +442,10 @@ impl<T: InvokeUiSession> Remote<T> {
 
     // Start a voice call recorder, records audio and send to remote
     fn start_voice_call(&mut self) -> Option<std::sync::mpsc::Sender<()>> {
-        if self.handler.is_file_transfer() || self.handler.is_port_forward() {
+        if self.handler.is_file_transfer()
+            || self.handler.is_port_forward()
+            || self.handler.is_terminal()
+        {
             return None;
         }
         // iOS does not have this server.
@@ -470,14 +520,22 @@ impl<T: InvokeUiSession> Remote<T> {
         }
     }
 
+    async fn send_close_reason(&mut self, peer: &mut Stream, reason: &str) {
+        if self.sent_close_reason {
+            return;
+        }
+        let mut misc = Misc::new();
+        misc.set_close_reason(reason.to_owned());
+        let mut msg = Message::new();
+        msg.set_misc(misc);
+        allow_err!(peer.send(&msg).await);
+        self.sent_close_reason = true;
+    }
+
     async fn handle_msg_from_ui(&mut self, data: Data, peer: &mut Stream) -> bool {
         match data {
             Data::Close => {
-                let mut misc = Misc::new();
-                misc.set_close_reason("".to_owned());
-                let mut msg = Message::new();
-                msg.set_misc(misc);
-                allow_err!(peer.send(&msg).await);
+                self.send_close_reason(peer, "").await;
                 return false;
             }
             Data::Login((os_username, os_password, password, remember)) => {
@@ -485,7 +543,7 @@ impl<T: InvokeUiSession> Remote<T> {
                     .handle_login_from_ui(os_username, os_password, password, remember, peer)
                     .await;
             }
-            #[cfg(not(feature = "flutter"))]
+            #[cfg(all(target_os = "windows", not(feature = "flutter")))]
             Data::ToggleClipboardFile => {
                 self.check_clipboard_file_context();
             }
@@ -508,13 +566,20 @@ impl<T: InvokeUiSession> Remote<T> {
                 }
                 allow_err!(peer.send(&msg).await);
             }
-            Data::SendFiles((id, path, to, file_num, include_hidden, is_remote)) => {
+            Data::SendFiles((id, r#type, path, to, file_num, include_hidden, is_remote)) => {
                 log::info!("send files, is remote {}", is_remote);
                 let od = can_enable_overwrite_detection(self.handler.lc.read().unwrap().version);
                 if is_remote {
                     log::debug!("New job {}, write to {} from remote {}", id, to, path);
+                    let to = match r#type {
+                        fs::JobType::Generic => fs::DataSource::FilePath(PathBuf::from(&to)),
+                        fs::JobType::Printer => {
+                            fs::DataSource::MemoryCursor(std::io::Cursor::new(Vec::new()))
+                        }
+                    };
                     self.write_jobs.push(fs::TransferJob::new_write(
                         id,
+                        r#type,
                         path.clone(),
                         to,
                         file_num,
@@ -524,14 +589,15 @@ impl<T: InvokeUiSession> Remote<T> {
                         od,
                     ));
                     allow_err!(
-                        peer.send(&fs::new_send(id, path, file_num, include_hidden))
+                        peer.send(&fs::new_send(id, r#type, path, file_num, include_hidden))
                             .await
                     );
                 } else {
                     match fs::TransferJob::new_read(
                         id,
+                        r#type,
                         to.clone(),
-                        path.clone(),
+                        fs::DataSource::FilePath(PathBuf::from(&path)),
                         file_num,
                         include_hidden,
                         is_remote,
@@ -575,7 +641,7 @@ impl<T: InvokeUiSession> Remote<T> {
                     }
                 }
             }
-            Data::AddJob((id, path, to, file_num, include_hidden, is_remote)) => {
+            Data::AddJob((id, r#type, path, to, file_num, include_hidden, is_remote)) => {
                 let od = can_enable_overwrite_detection(self.handler.lc.read().unwrap().version);
                 if is_remote {
                     log::debug!(
@@ -586,8 +652,9 @@ impl<T: InvokeUiSession> Remote<T> {
                     );
                     let mut job = fs::TransferJob::new_write(
                         id,
+                        r#type,
                         path.clone(),
-                        to,
+                        fs::DataSource::FilePath(PathBuf::from(&to)),
                         file_num,
                         include_hidden,
                         is_remote,
@@ -599,8 +666,9 @@ impl<T: InvokeUiSession> Remote<T> {
                 } else {
                     match fs::TransferJob::new_read(
                         id,
+                        r#type,
                         to.clone(),
-                        path.clone(),
+                        fs::DataSource::FilePath(PathBuf::from(&path)),
                         file_num,
                         include_hidden,
                         is_remote,
@@ -638,6 +706,7 @@ impl<T: InvokeUiSession> Remote<T> {
                         allow_err!(
                             peer.send(&fs::new_send(
                                 id,
+                                fs::JobType::Generic,
                                 job.remote.clone(),
                                 job.file_num,
                                 job.show_hidden
@@ -647,17 +716,25 @@ impl<T: InvokeUiSession> Remote<T> {
                     }
                 } else {
                     if let Some(job) = get_job(id, &mut self.read_jobs) {
-                        job.is_last_job = false;
-                        allow_err!(
-                            peer.send(&fs::new_receive(
-                                id,
-                                job.path.to_string_lossy().to_string(),
-                                job.file_num,
-                                job.files.clone(),
-                                job.total_size(),
-                            ))
-                            .await
-                        );
+                        match &job.data_source {
+                            fs::DataSource::FilePath(p) => {
+                                job.is_last_job = false;
+                                allow_err!(
+                                    peer.send(&fs::new_receive(
+                                        id,
+                                        p.to_string_lossy().to_string(),
+                                        job.file_num,
+                                        job.files.clone(),
+                                        job.total_size(),
+                                    ))
+                                    .await
+                                );
+                            }
+                            fs::DataSource::MemoryCursor(_) => {
+                                // unreachable!()
+                                log::error!("Resume job with memory cursor");
+                            }
+                        }
                     }
                 }
             }
@@ -762,11 +839,10 @@ impl<T: InvokeUiSession> Remote<T> {
                 });
                 msg_out.set_file_action(file_action);
                 allow_err!(peer.send(&msg_out).await);
-                if let Some(job) = fs::get_job(id, &mut self.write_jobs) {
+                if let Some(job) = fs::remove_job(id, &mut self.write_jobs) {
                     job.remove_download_file();
-                    fs::remove_job(id, &mut self.write_jobs);
                 }
-                fs::remove_job(id, &mut self.read_jobs);
+                let _ = fs::remove_job(id, &mut self.read_jobs);
                 self.remove_jobs.remove(&id);
             }
             Data::RemoveDir((id, path)) => {
@@ -846,10 +922,8 @@ impl<T: InvokeUiSession> Remote<T> {
                 }
             }
             Data::RecordScreen(start) => {
-                self.handler.lc.write().unwrap().record = start;
-                for (_, v) in self.video_threads.iter_mut() {
-                    v.video_sender.send(MediaData::RecordScreen(start)).ok();
-                }
+                self.handler.lc.write().unwrap().record_state = start;
+                self.update_record_state();
             }
             Data::ElevateDirect => {
                 let mut request = ElevationRequest::new();
@@ -904,6 +978,15 @@ impl<T: InvokeUiSession> Remote<T> {
                     }
                 }
             },
+            Data::TakeScreenshot((display, sid)) => {
+                let mut msg = Message::new();
+                msg.set_screenshot_request(ScreenshotRequest {
+                    display,
+                    sid,
+                    ..Default::default()
+                });
+                allow_err!(peer.send(&msg).await);
+            }
             _ => {}
         }
         true
@@ -1144,6 +1227,43 @@ impl<T: InvokeUiSession> Remote<T> {
         }
     }
 
+    fn check_view_camera_support(&self, peer_version: &str, peer_platform: &str) -> bool {
+        if self.peer_info.support_view_camera {
+            return true;
+        }
+        if hbb_common::get_version_number(&peer_version) < hbb_common::get_version_number("1.3.9")
+            && (peer_platform == "Windows" || peer_platform == "Linux")
+        {
+            self.handler.msgbox(
+                "error",
+                "Download new version",
+                "upgrade_remote_rustdesk_client_to_{1.3.9}_tip",
+                "",
+            );
+        } else {
+            self.handler.on_error("view_camera_unsupported_tip");
+        }
+        return false;
+    }
+
+    fn check_terminal_support(&self, peer_version: &str) -> bool {
+        if self.peer_info.support_terminal {
+            return true;
+        }
+        if hbb_common::get_version_number(&peer_version) < hbb_common::get_version_number("1.4.1") {
+            self.handler.msgbox(
+                "error",
+                "Remote terminal not supported",
+                "Remote terminal is not supported by the remote side. Please upgrade to version 1.4.1 or higher.",
+                "",
+            );
+        } else {
+            self.handler
+                .on_error("Remote terminal is not supported by the remote side");
+        }
+        return false;
+    }
+
     async fn handle_msg_from_peer(&mut self, data: &[u8], peer: &mut Stream) -> bool {
         if let Ok(msg_in) = Message::parse_from_bytes(&data) {
             match msg_in.union {
@@ -1198,9 +1318,22 @@ impl<T: InvokeUiSession> Remote<T> {
                         let peer_version = pi.version.clone();
                         let peer_platform = pi.platform.clone();
                         self.set_peer_info(&pi);
+                        if self.handler.is_view_camera() {
+                            if !self.check_view_camera_support(&peer_version, &peer_platform) {
+                                self.handler.lc.write().unwrap().handle_peer_info(&pi);
+                                return false;
+                            }
+                        }
+                        if self.handler.is_terminal() {
+                            if !self.check_terminal_support(&peer_version) {
+                                self.handler.lc.write().unwrap().handle_peer_info(&pi);
+                                return false;
+                            }
+                        }
                         self.handler.handle_peer_info(pi);
+                        #[cfg(all(target_os = "windows", not(feature = "flutter")))]
                         self.check_clipboard_file_context();
-                        if !(self.handler.is_file_transfer() || self.handler.is_port_forward()) {
+                        if self.handler.is_default() {
                             #[cfg(feature = "flutter")]
                             #[cfg(not(target_os = "ios"))]
                             let rx = Client::try_start_clipboard(None);
@@ -1210,6 +1343,10 @@ impl<T: InvokeUiSession> Remote<T> {
                                 crate::client::ClientClipboardContext {
                                     cfg: self.handler.get_permission_config(),
                                     tx: self.sender.clone(),
+                                    #[cfg(feature = "unix-file-copy-paste")]
+                                    is_file_supported: crate::is_support_file_copy_paste(
+                                        &peer_version,
+                                    ),
                                 },
                             ));
                             // To make sure current text clipboard data is updated.
@@ -1237,8 +1374,12 @@ impl<T: InvokeUiSession> Remote<T> {
                             // to-do: Android, is `sync_init_clipboard` really needed?
                             // https://github.com/rustdesk/rustdesk/discussions/9010
 
-                            #[cfg(target_os = "android")]
+                            #[cfg(feature = "flutter")]
+                            #[cfg(not(target_os = "ios"))]
                             crate::flutter::update_text_clipboard_required();
+
+                            #[cfg(all(feature = "flutter", feature = "unix-file-copy-paste"))]
+                            crate::flutter::update_file_clipboard_required();
 
                             // on connection established client
                             #[cfg(all(feature = "flutter", feature = "plugin_framework"))]
@@ -1293,9 +1434,9 @@ impl<T: InvokeUiSession> Remote<T> {
                         crate::clipboard::handle_msg_multi_clipboards(_mcb);
                     }
                 }
-                #[cfg(any(target_os = "windows", target_os = "linux", target_os = "macos"))]
+                #[cfg(any(target_os = "windows", feature = "unix-file-copy-paste"))]
                 Some(message::Union::Cliprdr(clip)) => {
-                    self.handle_cliprdr_msg(clip);
+                    self.handle_cliprdr_msg(clip, peer).await;
                 }
                 Some(message::Union::FileResponse(fr)) => {
                     match fr.union {
@@ -1326,92 +1467,105 @@ impl<T: InvokeUiSession> Remote<T> {
                             if digest.is_upload {
                                 if let Some(job) = fs::get_job(digest.id, &mut self.read_jobs) {
                                     if let Some(file) = job.files().get(digest.file_num as usize) {
-                                        let read_path = get_string(&job.join(&file.name));
-                                        let overwrite_strategy = job.default_overwrite_strategy();
-                                        if let Some(overwrite) = overwrite_strategy {
-                                            let req = FileTransferSendConfirmRequest {
-                                                id: digest.id,
-                                                file_num: digest.file_num,
-                                                union: Some(if overwrite {
-                                                    file_transfer_send_confirm_request::Union::OffsetBlk(0)
-                                                } else {
-                                                    file_transfer_send_confirm_request::Union::Skip(
-                                                        true,
-                                                    )
-                                                }),
-                                                ..Default::default()
-                                            };
-                                            job.confirm(&req);
-                                            let msg = new_send_confirm(req);
-                                            allow_err!(peer.send(&msg).await);
-                                        } else {
-                                            self.handler.override_file_confirm(
-                                                digest.id,
-                                                digest.file_num,
-                                                read_path,
-                                                true,
-                                                digest.is_identical,
-                                            );
+                                        if let fs::DataSource::FilePath(p) = &job.data_source {
+                                            let read_path =
+                                                get_string(&fs::TransferJob::join(p, &file.name));
+                                            let overwrite_strategy =
+                                                job.default_overwrite_strategy();
+                                            if let Some(overwrite) = overwrite_strategy {
+                                                let req = FileTransferSendConfirmRequest {
+                                                    id: digest.id,
+                                                    file_num: digest.file_num,
+                                                    union: Some(if overwrite {
+                                                        file_transfer_send_confirm_request::Union::OffsetBlk(0)
+                                                    } else {
+                                                        file_transfer_send_confirm_request::Union::Skip(
+                                                            true,
+                                                        )
+                                                    }),
+                                                    ..Default::default()
+                                                };
+                                                job.confirm(&req);
+                                                let msg = new_send_confirm(req);
+                                                allow_err!(peer.send(&msg).await);
+                                            } else {
+                                                self.handler.override_file_confirm(
+                                                    digest.id,
+                                                    digest.file_num,
+                                                    read_path,
+                                                    true,
+                                                    digest.is_identical,
+                                                );
+                                            }
                                         }
                                     }
                                 }
                             } else {
                                 if let Some(job) = fs::get_job(digest.id, &mut self.write_jobs) {
                                     if let Some(file) = job.files().get(digest.file_num as usize) {
-                                        let write_path = get_string(&job.join(&file.name));
-                                        let overwrite_strategy = job.default_overwrite_strategy();
-                                        match fs::is_write_need_confirmation(&write_path, &digest) {
-                                            Ok(res) => match res {
-                                                DigestCheckResult::IsSame => {
-                                                    let req = FileTransferSendConfirmRequest {
+                                        if let fs::DataSource::FilePath(p) = &job.data_source {
+                                            let write_path =
+                                                get_string(&fs::TransferJob::join(p, &file.name));
+                                            let overwrite_strategy =
+                                                job.default_overwrite_strategy();
+                                            match fs::is_write_need_confirmation(
+                                                &write_path,
+                                                &digest,
+                                            ) {
+                                                Ok(res) => match res {
+                                                    DigestCheckResult::IsSame => {
+                                                        let req = FileTransferSendConfirmRequest {
                                                         id: digest.id,
                                                         file_num: digest.file_num,
                                                         union: Some(file_transfer_send_confirm_request::Union::Skip(true)),
                                                         ..Default::default()
                                                     };
-                                                    job.confirm(&req);
-                                                    let msg = new_send_confirm(req);
-                                                    allow_err!(peer.send(&msg).await);
-                                                }
-                                                DigestCheckResult::NeedConfirm(digest) => {
-                                                    if let Some(overwrite) = overwrite_strategy {
-                                                        let req = FileTransferSendConfirmRequest {
-                                                            id: digest.id,
-                                                            file_num: digest.file_num,
-                                                            union: Some(if overwrite {
-                                                                file_transfer_send_confirm_request::Union::OffsetBlk(0)
-                                                            } else {
-                                                                file_transfer_send_confirm_request::Union::Skip(true)
-                                                            }),
-                                                            ..Default::default()
-                                                        };
                                                         job.confirm(&req);
                                                         let msg = new_send_confirm(req);
                                                         allow_err!(peer.send(&msg).await);
-                                                    } else {
-                                                        self.handler.override_file_confirm(
-                                                            digest.id,
-                                                            digest.file_num,
-                                                            write_path,
-                                                            false,
-                                                            digest.is_identical,
-                                                        );
                                                     }
-                                                }
-                                                DigestCheckResult::NoSuchFile => {
-                                                    let req = FileTransferSendConfirmRequest {
+                                                    DigestCheckResult::NeedConfirm(digest) => {
+                                                        if let Some(overwrite) = overwrite_strategy
+                                                        {
+                                                            let req =
+                                                                FileTransferSendConfirmRequest {
+                                                                    id: digest.id,
+                                                                    file_num: digest.file_num,
+                                                                    union: Some(if overwrite {
+                                                                        file_transfer_send_confirm_request::Union::OffsetBlk(0)
+                                                                    } else {
+                                                                        file_transfer_send_confirm_request::Union::Skip(true)
+                                                                    }),
+                                                                    ..Default::default()
+                                                                };
+                                                            job.confirm(&req);
+                                                            let msg = new_send_confirm(req);
+                                                            allow_err!(peer.send(&msg).await);
+                                                        } else {
+                                                            self.handler.override_file_confirm(
+                                                                digest.id,
+                                                                digest.file_num,
+                                                                write_path,
+                                                                false,
+                                                                digest.is_identical,
+                                                            );
+                                                        }
+                                                    }
+                                                    DigestCheckResult::NoSuchFile => {
+                                                        let req = FileTransferSendConfirmRequest {
                                                         id: digest.id,
                                                         file_num: digest.file_num,
                                                         union: Some(file_transfer_send_confirm_request::Union::OffsetBlk(0)),
                                                         ..Default::default()
                                                     };
-                                                    job.confirm(&req);
-                                                    let msg = new_send_confirm(req);
-                                                    allow_err!(peer.send(&msg).await);
+                                                        job.confirm(&req);
+                                                        let msg = new_send_confirm(req);
+                                                        allow_err!(peer.send(&msg).await);
+                                                    }
+                                                },
+                                                Err(err) => {
+                                                    println!("error receiving digest: {}", err);
                                                 }
-                                            },
-                                            Err(err) => {
-                                                println!("error receiving digest: {}", err);
                                             }
                                         }
                                     }
@@ -1423,23 +1577,76 @@ impl<T: InvokeUiSession> Remote<T> {
                                 if let Err(_err) = job.write(block).await {
                                     // to-do: add "skip" for writing job
                                 }
-                                self.update_jobs_status();
+                                if job.r#type == fs::JobType::Generic {
+                                    self.update_jobs_status();
+                                }
                             }
                         }
                         Some(file_response::Union::Done(d)) => {
                             let mut err: Option<String> = None;
-                            if let Some(job) = fs::get_job(d.id, &mut self.write_jobs) {
+                            let mut job_type = fs::JobType::Generic;
+                            let mut printer_data = None;
+                            if let Some(job) = fs::remove_job(d.id, &mut self.write_jobs) {
                                 job.modify_time();
                                 err = job.job_error();
-                                fs::remove_job(d.id, &mut self.write_jobs);
+                                job_type = job.r#type;
+                                printer_data = match job.get_buf_data().await {
+                                    Ok(d) => d,
+                                    Err(e) => {
+                                        log::error!("Failed to get the printer data: {}", e);
+                                        None
+                                    }
+                                };
                             }
-                            self.handle_job_status(d.id, d.file_num, err);
+                            match job_type {
+                                fs::JobType::Generic => {
+                                    self.handle_job_status(d.id, d.file_num, err);
+                                }
+                                fs::JobType::Printer => {
+                                    if let Some(err) = err {
+                                        log::error!("Receive print job failed, error {err}");
+                                    } else {
+                                        log::info!(
+                                            "Receive print job done, data len: {:?}",
+                                            printer_data.as_ref().map(|d| d.len()).unwrap_or(0)
+                                        );
+                                        #[cfg(target_os = "windows")]
+                                        if let Some(data) = printer_data {
+                                            let printer_name = self
+                                                .handler
+                                                .printer_names
+                                                .write()
+                                                .unwrap()
+                                                .remove(&d.id);
+                                            // Spawn a new thread to handle the print job.
+                                            // Or print job will block the ui thread.
+                                            std::thread::spawn(move || {
+                                                if let Err(e) =
+                                                    crate::platform::send_raw_data_to_printer(
+                                                        printer_name,
+                                                        data,
+                                                    )
+                                                {
+                                                    log::error!("Print job error: {}", e);
+                                                }
+                                            });
+                                        }
+                                    }
+                                }
+                            }
                         }
                         Some(file_response::Union::Error(e)) => {
-                            if let Some(_job) = fs::get_job(e.id, &mut self.write_jobs) {
-                                fs::remove_job(e.id, &mut self.write_jobs);
+                            let job_type = fs::remove_job(e.id, &mut self.write_jobs)
+                                .map(|j| j.r#type)
+                                .unwrap_or(fs::JobType::Generic);
+                            match job_type {
+                                fs::JobType::Generic => {
+                                    self.handle_job_status(e.id, e.file_num, Some(e.error));
+                                }
+                                fs::JobType::Printer => {
+                                    log::error!("Printer job error: {}", e.error);
+                                }
                             }
-                            self.handle_job_status(e.id, e.file_num, Some(e.error));
                         }
                         _ => {}
                     }
@@ -1460,6 +1667,8 @@ impl<T: InvokeUiSession> Remote<T> {
                                 #[cfg(feature = "flutter")]
                                 #[cfg(not(target_os = "ios"))]
                                 crate::flutter::update_text_clipboard_required();
+                                #[cfg(all(feature = "flutter", feature = "unix-file-copy-paste"))]
+                                crate::flutter::update_file_clipboard_required();
                                 self.handler.set_permission("keyboard", p.enabled);
                             }
                             Ok(Permission::Clipboard) => {
@@ -1478,12 +1687,23 @@ impl<T: InvokeUiSession> Remote<T> {
                                 if !p.enabled && self.handler.is_file_transfer() {
                                     return true;
                                 }
+                                #[cfg(all(feature = "flutter", feature = "unix-file-copy-paste"))]
+                                crate::flutter::update_file_clipboard_required();
                                 self.handler.set_permission("file", p.enabled);
+                                #[cfg(feature = "unix-file-copy-paste")]
+                                if !p.enabled {
+                                    try_empty_clipboard_files(
+                                        ClipboardSide::Client,
+                                        self.client_conn_id,
+                                    );
+                                }
                             }
                             Ok(Permission::Restart) => {
                                 self.handler.set_permission("restart", p.enabled);
                             }
                             Ok(Permission::Recording) => {
+                                self.handler.lc.write().unwrap().record_permission = p.enabled;
+                                self.update_record_state();
                                 self.handler.set_permission("recording", p.enabled);
                             }
                             Ok(Permission::BlockInput) => {
@@ -1509,6 +1729,7 @@ impl<T: InvokeUiSession> Remote<T> {
                         }
                     }
                     Some(misc::Union::CloseReason(c)) => {
+                        self.sent_close_reason = true; // The controlled end will close, no need to send close reason
                         self.handler.msgbox("error", "Connection Error", &c, "");
                         return false;
                     }
@@ -1647,6 +1868,41 @@ impl<T: InvokeUiSession> Remote<T> {
                     }
                 }
                 Some(message::Union::FileAction(action)) => match action.union {
+                    Some(file_action::Union::Send(_s)) => match _s.file_type.enum_value() {
+                        #[cfg(target_os = "windows")]
+                        Ok(file_transfer_send_request::FileType::Printer) => {
+                            #[cfg(feature = "flutter")]
+                            let action = LocalConfig::get_option(
+                                config::keys::OPTION_PRINTER_INCOMING_JOB_ACTION,
+                            );
+                            #[cfg(not(feature = "flutter"))]
+                            let action = "";
+                            if action == "dismiss" {
+                                // Just ignore the incoming print job.
+                            } else {
+                                let id = fs::get_next_job_id();
+                                #[cfg(feature = "flutter")]
+                                let allow_auto_print = LocalConfig::get_bool_option(
+                                    config::keys::OPTION_PRINTER_ALLOW_AUTO_PRINT,
+                                );
+                                #[cfg(not(feature = "flutter"))]
+                                let allow_auto_print = false;
+                                if allow_auto_print {
+                                    let printer_name = if action == "" {
+                                        "".to_string()
+                                    } else {
+                                        LocalConfig::get_option(
+                                            config::keys::OPTION_PRINTER_SELECTED_NAME,
+                                        )
+                                    };
+                                    self.handler.printer_response(id, _s.path, printer_name);
+                                } else {
+                                    self.handler.printer_request(id, _s.path);
+                                }
+                            }
+                        }
+                        _ => {}
+                    },
                     Some(file_action::Union::SendConfirm(c)) => {
                         if let Some(job) = fs::get_job(c.id, &mut self.read_jobs) {
                             job.confirm(&c);
@@ -1697,6 +1953,22 @@ impl<T: InvokeUiSession> Remote<T> {
                     self.handler.set_displays(&pi.displays);
                     self.handler.set_platform_additions(&pi.platform_additions);
                 }
+                Some(message::Union::ScreenshotResponse(response)) => {
+                    crate::client::screenshot::set_screenshot(response.data);
+                    self.handler
+                        .handle_screenshot_resp(response.sid, response.msg);
+                }
+                Some(message::Union::TerminalResponse(response)) => {
+                    use hbb_common::message_proto::terminal_response::Union;
+                    if let Some(Union::Opened(opened)) = &response.union {
+                        if opened.success && !opened.service_id.is_empty() {
+                            let mut lc = self.handler.lc.write().unwrap();
+                            let key = lc.get_key_terminal_service_id().to_owned();
+                            lc.set_option(key, opened.service_id.clone());
+                        }
+                    }
+                    self.handler.handle_terminal_response(response);
+                }
                 _ => {}
             }
         }
@@ -1705,6 +1977,12 @@ impl<T: InvokeUiSession> Remote<T> {
 
     fn set_peer_info(&mut self, pi: &PeerInfo) {
         self.peer_info.platform = pi.platform.clone();
+
+        // Check features field for terminal support
+        if let Some(features) = pi.features.as_ref() {
+            self.peer_info.support_terminal = features.terminal;
+        }
+
         if let Ok(platform_additions) =
             serde_json::from_str::<HashMap<String, serde_json::Value>>(&pi.platform_additions)
         {
@@ -1719,6 +1997,11 @@ impl<T: InvokeUiSession> Remote<T> {
                 .flatten()
                 .unwrap_or_default()
                 .to_string();
+            self.peer_info.support_view_camera = platform_additions
+                .get("support_view_camera")
+                .map(|v| v.as_bool())
+                .flatten()
+                .unwrap_or(false);
         }
     }
 
@@ -1896,23 +2179,19 @@ impl<T: InvokeUiSession> Remote<T> {
         true
     }
 
+    #[cfg(all(target_os = "windows", not(feature = "flutter")))]
     fn check_clipboard_file_context(&self) {
-        #[cfg(any(
-            target_os = "windows",
-            all(
-                feature = "unix-file-copy-paste",
-                any(target_os = "linux", target_os = "macos")
-            )
-        ))]
-        {
-            let enabled = *self.handler.server_file_transfer_enabled.read().unwrap()
-                && self.handler.lc.read().unwrap().enable_file_copy_paste.v;
-            ContextSend::enable(enabled);
-        }
+        let enabled = *self.handler.server_file_transfer_enabled.read().unwrap()
+            && self.handler.lc.read().unwrap().enable_file_copy_paste.v;
+        ContextSend::enable(enabled);
     }
 
-    #[cfg(any(target_os = "windows", target_os = "linux", target_os = "macos"))]
-    fn handle_cliprdr_msg(&self, clip: hbb_common::message_proto::Cliprdr) {
+    #[cfg(any(target_os = "windows", feature = "unix-file-copy-paste"))]
+    async fn handle_cliprdr_msg(
+        &mut self,
+        clip: hbb_common::message_proto::Cliprdr,
+        _peer: &mut Stream,
+    ) {
         log::debug!("handling cliprdr msg from server peer");
         #[cfg(feature = "flutter")]
         if let Some(hbb_common::message_proto::cliprdr::Union::FormatList(_)) = &clip.union {
@@ -1929,20 +2208,61 @@ impl<T: InvokeUiSession> Remote<T> {
         };
 
         let is_stopping_allowed = clip.is_beginning_message();
-        let file_transfer_enabled = self.handler.lc.read().unwrap().enable_file_copy_paste.v;
+        let file_transfer_enabled = self.handler.is_file_clipboard_required();
         let stop = is_stopping_allowed && !file_transfer_enabled;
         log::debug!(
                 "Process clipboard message from server peer, stop: {}, is_stopping_allowed: {}, file_transfer_enabled: {}",
                 stop, is_stopping_allowed, file_transfer_enabled);
         if !stop {
+            #[cfg(any(
+                target_os = "windows",
+                all(target_os = "macos", feature = "unix-file-copy-paste")
+            ))]
             if let Err(e) = ContextSend::make_sure_enabled() {
                 log::error!("failed to restart clipboard context: {}", e);
             };
-            let _ = ContextSend::proc(|context| -> ResultType<()> {
-                context
-                    .server_clip_file(self.client_conn_id, clip)
-                    .map_err(|e| e.into())
-            });
+            #[cfg(target_os = "windows")]
+            {
+                let _ = ContextSend::proc(|context| -> ResultType<()> {
+                    context
+                        .server_clip_file(self.client_conn_id, clip)
+                        .map_err(|e| e.into())
+                });
+            }
+            #[cfg(feature = "unix-file-copy-paste")]
+            if crate::is_support_file_copy_paste_num(self.handler.lc.read().unwrap().version) {
+                let mut out_msg = None;
+
+                #[cfg(target_os = "macos")]
+                if clipboard::platform::unix::macos::should_handle_msg(&clip) {
+                    if let Err(e) = ContextSend::proc(|context| -> ResultType<()> {
+                        context
+                            .server_clip_file(self.client_conn_id, clip)
+                            .map_err(|e| e.into())
+                    }) {
+                        log::error!("failed to handle cliprdr msg: {}", e);
+                    }
+                } else {
+                    out_msg = unix_file_clip::serve_clip_messages(
+                        ClipboardSide::Client,
+                        clip,
+                        self.client_conn_id,
+                    );
+                }
+
+                #[cfg(not(target_os = "macos"))]
+                {
+                    out_msg = unix_file_clip::serve_clip_messages(
+                        ClipboardSide::Client,
+                        clip,
+                        self.client_conn_id,
+                    );
+                }
+
+                if let Some(msg) = out_msg {
+                    allow_err!(_peer.send(&msg).await);
+                }
+            }
         }
     }
 
@@ -1983,14 +2303,38 @@ impl<T: InvokeUiSession> Remote<T> {
             },
         );
         self.video_threads.insert(display, video_thread);
-        let auto_record = self.handler.lc.read().unwrap().record;
-        if auto_record && self.video_threads.len() == 1 {
-            let mut misc = Misc::new();
-            misc.set_client_record_status(true);
-            let mut msg = Message::new();
-            msg.set_misc(misc);
-            self.sender.send(Data::Message(msg)).ok();
+        if self.video_threads.len() == 1 {
+            let auto_record =
+                LocalConfig::get_bool_option(config::keys::OPTION_ALLOW_AUTO_RECORD_OUTGOING);
+            self.handler.lc.write().unwrap().record_state = auto_record;
+            self.update_record_state();
         }
+    }
+
+    fn update_record_state(&mut self) {
+        // state
+        let permission = self.handler.lc.read().unwrap().record_permission;
+        if !permission {
+            self.handler.lc.write().unwrap().record_state = false;
+        }
+        let state = self.handler.lc.read().unwrap().record_state;
+        let start = state && permission;
+        if self.last_record_state == start {
+            return;
+        }
+        self.last_record_state = start;
+        log::info!("record screen start: {start}");
+        // update local
+        for (_, v) in self.video_threads.iter_mut() {
+            v.video_sender.send(MediaData::RecordScreen(start)).ok();
+        }
+        self.handler.update_record_status(start);
+        // update remote
+        let mut misc = Misc::new();
+        misc.set_client_record_status(start);
+        let mut msg = Message::new();
+        msg.set_misc(misc);
+        self.sender.send(Data::Message(msg)).ok();
     }
 }
 
@@ -2039,4 +2383,11 @@ struct VideoThread {
     frame_count: Arc<RwLock<usize>>,
     discard_queue: Arc<RwLock<bool>>,
     fps_control: FpsControl,
+}
+
+impl Drop for VideoThread {
+    fn drop(&mut self) {
+        // since channels are buffered, messages sent before the disconnect will still be properly received.
+        *self.discard_queue.write().unwrap() = true;
+    }
 }
