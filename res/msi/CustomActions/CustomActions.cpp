@@ -765,6 +765,16 @@ void TryCreateStartServiceByShell(LPWSTR svcName, LPWSTR svcBinary, LPWSTR szSvc
         WcaLog(LOGMSG_STANDARD, "Service \"%ls\" is created with shell.", svcName);
     }
 
+    hr = StringCchPrintfW(szCmd, cchCmd, L"/c sc config %ls start= delayed-auto", svcName);
+    if (FAILED(hr)) {
+        WcaLog(LOGMSG_STANDARD, "Failed to format delayed auto-start command for service: %ls, HRESULT: 0x%08X", svcName, hr);
+    } else {
+        hi = ShellExecuteW(NULL, L"open", L"cmd.exe", szCmd, NULL, SW_HIDE);
+        if ((int)hi <= 32) {
+            WcaLog(LOGMSG_STANDARD, "Failed to configure delayed auto-start for service with shell: %d, last error: 0x%08X.", (int)hi, GetLastError());
+        }
+    }
+
     // Query and log if the service is running.
     for (int k = 0; k < 10; ++k) {
         if (!QueryServiceStatusExW(svcName, &svcStatus)) {
@@ -877,4 +887,56 @@ void TryStopDeleteServiceByShell(LPWSTR svcName)
     else {
         WcaLog(LOGMSG_STANDARD, "Failed to delete service: \"%ls\" with shell, current status: %d.", svcName, svcStatus.dwCurrentState);
     }
+}
+
+UINT __stdcall InstallPrinter(
+    __in MSIHANDLE hInstall)
+{
+    HRESULT hr = S_OK;
+    DWORD er = ERROR_SUCCESS;
+
+    int nResult = 0;
+    LPWSTR installFolder = NULL;
+    LPWSTR pwz = NULL;
+    LPWSTR pwzData = NULL;
+
+    hr = WcaInitialize(hInstall, "InstallPrinter");
+    ExitOnFailure(hr, "Failed to initialize");
+
+    hr = WcaGetProperty(L"CustomActionData", &pwzData);
+    ExitOnFailure(hr, "failed to get CustomActionData");
+
+    pwz = pwzData;
+    hr = WcaReadStringFromCaData(&pwz, &installFolder);
+    ExitOnFailure(hr, "failed to read database key from custom action data: %ls", pwz);
+
+    WcaLog(LOGMSG_STANDARD, "Try to install RD printer in : %ls", installFolder);
+    RemotePrinter::installUpdatePrinter(installFolder);
+    WcaLog(LOGMSG_STANDARD, "Install RD printer done");
+
+LExit:
+    if (pwzData) {
+        ReleaseStr(pwzData);
+    }
+
+    er = SUCCEEDED(hr) ? ERROR_SUCCESS : ERROR_INSTALL_FAILURE;
+    return WcaFinalize(er);
+}
+
+UINT __stdcall UninstallPrinter(
+    __in MSIHANDLE hInstall)
+{
+    HRESULT hr = S_OK;
+    DWORD er = ERROR_SUCCESS;
+
+    hr = WcaInitialize(hInstall, "UninstallPrinter");
+    ExitOnFailure(hr, "Failed to initialize");
+
+    WcaLog(LOGMSG_STANDARD, "Try to uninstall RD printer");
+    RemotePrinter::uninstallPrinter();
+    WcaLog(LOGMSG_STANDARD, "Uninstall RD printer done");
+
+LExit:
+    er = SUCCEEDED(hr) ? ERROR_SUCCESS : ERROR_INSTALL_FAILURE;
+    return WcaFinalize(er);
 }

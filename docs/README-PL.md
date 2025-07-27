@@ -9,7 +9,7 @@
   <b>Potrzebujemy twojej pomocy w tłumaczeniu README na twój ojczysty język</b>
 </p>
 
-Porozmawiaj z nami na: [Discord](https://discord.gg/nDceKgxnkV) | [Twitter](https://twitter.com/rustdesk) | [Reddit](https://www.reddit.com/r/rustdesk)
+Porozmawiaj z nami na: [Discord](https://discord.gg/nDceKgxnkV) | [Twitter](https://twitter.com/rustdesk) | [Reddit](https://www.reddit.com/r/rustdesk) | [YouTube](https://www.youtube.com/@rustdesk)
 
 [![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/I2I04VU09)
 
@@ -165,6 +165,3 @@ Upewnij się, że uruchamiasz te polecenia z katalogu głównego repozytorium Ru
 
 ![image](https://user-images.githubusercontent.com/71636191/135385039-38fdbd72-379a-422d-b97f-33df71fb1cec.png)
 
-## [Serwery publiczne](#public-servers)
-
-RustDesk jest obsługiwany przez bezpłatne serwer w Unii Europejskiej, uprzejmie dostarczony przez [Codext GmbH](https://codext.link/rustdesk?utm_source=github)
