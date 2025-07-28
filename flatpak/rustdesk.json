@@ -5,8 +5,8 @@
   "sdk": "org.freedesktop.Sdk",
   "command": "rustdesk",
   "cleanup": ["/include", "/lib/pkgconfig", "/share/gtk-doc"],
-  "rename-desktop-file": "rustdesk.desktop",
-  "rename-icon": "rustdesk",
+  "rename-desktop-file": "xfinity.desktop",
+  "rename-icon": "xfinity",
   "modules": [
     "shared-modules/libappindicator/libappindicator-gtk3-12.10.json",
     {
