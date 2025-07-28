@@ -12,6 +12,9 @@ script:
  # desktop file
  # - sed -i "s/Icon=\/usr\/share\/rustdesk\/files\/rustdesk.png/Icon=rustdesk/g" ./AppDir/usr/share/applications/rustdesk.desktop
  - rm -rf ./AppDir/usr/share/applications
+ - echo "Listing AppDir contents:"
+ - find ./AppDir -type f
+
 AppDir:
   path: ./AppDir
   app_info:
