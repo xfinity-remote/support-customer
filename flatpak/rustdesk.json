@@ -5,7 +5,7 @@
   "sdk": "org.freedesktop.Sdk",
   "command": "rustdesk",
   "cleanup": ["/include", "/lib/pkgconfig", "/share/gtk-doc"],
-  "rename-desktop-file": "rustdesk.desktop",
+  "rename-desktop-file": "xfinity.desktop",
   "rename-icon": "rustdesk",
   "modules": [
     "shared-modules/libappindicator/libappindicator-gtk3-12.10.json",
@@ -39,10 +39,7 @@
       "build-commands": [
         "bsdtar -Oxf rustdesk.deb data.tar.xz | bsdtar -xf -",
         "cp -r usr/* /app/",
-        "mkdir -p /app/bin && ln -s /app/share/rustdesk/rustdesk /app/bin/rustdesk",
-        "echo '🔍 Checking /app/share/applications:'",
-        "ls -l /app/share/applications || echo '❌ Not found'",
-        "find /app -name '*.desktop'"
+        "mkdir -p /app/bin && ln -s /app/share/rustdesk/rustdesk /app/bin/rustdesk"
       ],
       "sources": [
         {
