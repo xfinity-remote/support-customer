@@ -19,7 +19,7 @@ AppDir:
     name: rustdesk
     icon: rustdesk
     version: 1.4.1
-    exec: usr/share/rustdesk/xfinity
+    exec: usr/share/xfinity/xfinity
     exec_args: $@
   apt:
     arch:
