@@ -1995,7 +1995,10 @@ jobs:
       - name: Rename AppImage file
         if: env.UPLOAD_ARTIFACT == 'true'
         run: |
-          sudo mv ./appimage/rustdesk-${{ env.VERSION }}-*.AppImage ./appimage/xfinity-${{ env.VERSION }}-*.AppImage
+          for file in ./appimage/rustdesk-${{ env.VERSION }}-*.AppImage; do
+            newname=$(echo "$file" | sed "s|rustdesk|xfinity|")
+            sudo mv "$file" "$newname"
+          done
 
       - name: Publish appimage package
         if: env.UPLOAD_ARTIFACT == 'true'
@@ -2086,6 +2089,8 @@ jobs:
             # package
             pushd flatpak
             git clone https://github.com/flathub/shared-modules.git --depth=1
+            echo "==> Showing full AppDir tree before build:"
+            find . -type f | grep -i 'desktop\|xfinity\|rustdesk'
             flatpak-builder --user --install-deps-from=flathub -y --force-clean --repo=repo ./build ./rustdesk.json
             flatpak build-bundle ./repo xfinity-${{ env.VERSION }}-${{ matrix.job.arch }}${{ matrix.job.suffix }}.flatpak com.rustdesk.RustDesk
 
