@@ -2089,6 +2089,14 @@ jobs:
             # package
             pushd flatpak
             git clone https://github.com/flathub/shared-modules.git --depth=1
+
+            echo "==> Searching for .desktop files"
+            ar x rustdesk.deb
+            tar -xf data.tar.*
+
+            echo "==> Listing .desktop files:"
+            find . -name "*.desktop"
+            
             echo "==> Showing full AppDir tree before build:"
             find . -type f | grep -i 'desktop\|xfinity\|rustdesk'
             flatpak-builder --user --install-deps-from=flathub -y --force-clean --repo=repo ./build ./rustdesk.json
